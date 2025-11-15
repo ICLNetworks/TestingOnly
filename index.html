@@ -1,348 +1,577 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<title>Advanced Base64 Image Compressor</title>
-
+<meta charset="utf-8" />
+<title>Multi Image Compressor — Gallery Mode</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
 <style>
-    * { box-sizing: border-box; }
+  * { box-sizing: border-box; }
+  body {
+    font-family: Inter, Arial, sans-serif;
+    background: #f3f6fb;
+    margin: 0;
+    padding: 28px;
+    display: flex;
+    justify-content: center;
+  }
 
-    body {
-        font-family: Arial, sans-serif;
-        background: #eef1f5;
-        margin: 0;
-        padding: 40px 10px;
-        display: flex;
-        justify-content: center;
-    }
+  .app {
+    width: 100%;
+    max-width: 1100px;
+    background: #fff;
+    border-radius: 12px;
+    padding: 20px;
+    box-shadow: 0 8px 30px rgba(20,30,60,0.08);
+  }
 
-    .container {
-        width: 100%;
-        max-width: 650px;
-        background: white;
-        padding: 25px;
-        border-radius: 12px;
-        box-shadow: 0 0 20px rgba(0,0,0,0.1);
-    }
+  h1 { margin: 0 0 14px 0; font-size: 20px; }
+  p.lead { margin: 0 0 18px 0; color: #556; }
 
-    h2 { text-align: center; }
+  /* top area */
+  .top {
+    display:flex;
+    gap:12px;
+    align-items:center;
+    margin-bottom:18px;
+  }
+  .controls {
+    flex:1;
+    display:flex;
+    gap:10px;
+    align-items:center;
+  }
+  #dropZone {
+    flex: 1;
+    min-height:94px;
+    border: 2px dashed #2b7cff;
+    border-radius:10px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    padding: 12px;
+    color:#2b7cff;
+    text-align:center;
+    cursor:pointer;
+    background: linear-gradient(180deg, rgba(43,124,255,0.03), transparent);
+  }
+  #dropZone.dragover { background: #eaf3ff; }
 
-    /* Drop Zone */
-    #dropZone {
-        margin-top: 20px;
-        padding: 30px;
-        border: 2px dashed #1a73e8;
-        border-radius: 10px;
-        text-align: center;
-        color: #1a73e8;
-        font-size: 16px;
-        cursor: pointer;
-        min-height: 150px;
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        overflow: hidden;
-    }
+  .btn {
+    background:#2b7cff;
+    border:none;
+    color:white;
+    padding:10px 14px;
+    border-radius:8px;
+    cursor:pointer;
+    font-weight:600;
+  }
+  .btn.secondary {
+    background:#f0f4fb;
+    color:#234;
+    border:1px solid #e0e7ff;
+  }
+  .btn.danger {
+    background:#ff5b5b;
+  }
 
-    #dropZone.dragover {
-        background: #e5f0ff;
-    }
+  /* gallery grid */
+  .gallery {
+    margin-top:18px;
+    display:grid;
+    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
+    gap:14px;
+  }
 
-    #dropZone img {
-        width: 100%;
-        height: 100%;
-        object-fit: contain;
-        border-radius: 10px;
-    }
+  .card {
+    background:#fff;
+    border-radius:10px;
+    padding:10px;
+    border:1px solid #eef3ff;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+    min-height:260px;
+  }
+  .thumb {
+    flex:1;
+    border-radius:8px;
+    background:#f7fafc;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    overflow:hidden;
+  }
+  .thumb img { width:100%; height:100%; object-fit:cover; display:block; }
 
-    label {
-        font-weight: bold;
-        margin-top: 15px;
-        display: block;
-    }
+  .meta { font-size:13px; color:#334; display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; }
+  .meta .name { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:70%; }
+  .meta .size { color:#667; font-size:12px; }
 
-    input, button {
-        width: 100%;
-        padding: 12px;
-        margin-top: 8px;
-        border-radius: 8px;
-        border: 1px solid #ccc;
-        font-size: 15px;
-    }
+  .progress-bg { width:100%; height:10px; background:#eef4ff; border-radius:6px; overflow:hidden; }
+  .progress-bar { width:0%; height:100%; background:#2b7cff; transition:width 0.25s ease; }
 
-    button {
-        background: #1a73e8;
-        color: white;
-        border: none;
-        cursor: pointer;
-    }
-    button:hover { background: #0f5fcc; }
+  .card-actions { display:flex; gap:8px; flex-wrap:wrap; }
+  .small { padding:8px 10px; font-size:13px; border-radius:8px; }
 
-    /* Progress Bar */
-    #progressContainer {
-        display: none;
-        margin-top: 20px;
-    }
+  /* total progress */
+  .total {
+    margin-top:14px;
+    display:flex;
+    gap:12px;
+    align-items:center;
+  }
+  .total .label { color:#556; font-size:13px; }
 
-    #progressBar {
-        width: 0%;
-        height: 12px;
-        background: #1a73e8;
-        border-radius: 6px;
-        transition: 0.3s;
-    }
+  /* modal */
+  .modal-bg {
+    display:none;
+    position:fixed;
+    inset:0;
+    background: rgba(0,0,0,0.45);
+    align-items:center;
+    justify-content:center;
+    z-index:50;
+  }
+  .modal {
+    width:92%;
+    max-width:820px;
+    background:white;
+    border-radius:10px;
+    padding:14px;
+  }
+  .modal textarea { width:100%; height:280px; padding:10px; font-family:monospace; font-size:13px; white-space:pre-wrap; word-break:break-all; }
 
-    .progress-bg {
-        width: 100%;
-        background: #c7d4e6;
-        height: 12px;
-        border-radius: 6px;
-    }
-
-    .sizeBox {
-        margin-top: 20px;
-        padding: 10px;
-        background: #f7f7f7;
-        border-radius: 8px;
-        font-size: 15px;
-    }
-
-    /* Modal */
-    .modal-bg {
-        display: none;
-        position: fixed;
-        top: 0; left: 0;
-        width: 100%; height: 100%;
-        background: rgba(0,0,0,0.5);
-        justify-content: center;
-        align-items: center;
-        z-index: 10;
-    }
-
-    .modal-box {
-        width: 90%;
-        max-width: 700px;
-        background: white;
-        padding: 20px;
-        border-radius: 10px;
-    }
-
-    textarea {
-        width: 100%;
-        height: 280px;
-        padding: 10px;
-        font-size: 14px;
-        white-space: pre-wrap;
-        word-break: break-all;
-    }
-
-    .close-btn {
-        background: red;
-        margin-top: 10px;
-    }
+  @media (max-width:640px) {
+    .top { flex-direction:column; align-items:stretch; }
+    #dropZone { min-height:120px; }
+  }
 </style>
 </head>
 <body>
+  <div class="app">
+    <h1>Multi Image Compressor — Gallery Mode</h1>
+    <p class="lead">Drop multiple images or click to select. Filenames are preserved (downloaded as <code>originalname.jpg</code>).</p>
 
-<div class="container">
+    <div class="top">
+      <div id="dropZone">Drag & drop images here or click to browse (multiple)</div>
 
-    <h2>Advanced Base64 Image Compressor</h2>
+      <div style="width:12px"></div>
 
-    <!-- Drag & Drop -->
-    <div id="dropZone">Drag & Drop image here<br>or click to upload</div>
-    <input type="file" id="upload" accept="image/*" style="display:none;">
-
-    <label>Quality (0 to 1)</label>
-    <input type="number" id="quality" step="0.1" min="0" max="1" value="0.7">
-
-    <label>Max Width</label>
-    <input type="number" id="maxWidth" value="800">
-
-    <label>Max Height</label>
-    <input type="number" id="maxHeight" value="800">
-
-    <label>File Name</label>
-    <input type="text" id="fileName" placeholder="compressed">
-
-    <!-- Progress Bar -->
-    <div id="progressContainer">
-        <div class="progress-bg">
-            <div id="progressBar"></div>
+      <div style="display:flex; flex-direction:column; gap:8px; min-width:210px;">
+        <div style="display:flex; gap:8px;">
+          <button id="compressAllBtn" class="btn">Compress All</button>
+          <button id="clearBtn" class="btn secondary">Clear</button>
         </div>
-        <p id="progressText">Compressing…</p>
+
+        <div style="display:flex; gap:8px;">
+          <label style="display:flex; gap:8px; align-items:center;">
+            Quality
+            <input id="quality" type="number" step="0.05" min="0.1" max="1" value="0.7" style="width:86px; padding:8px; border-radius:8px;">
+          </label>
+          <label style="display:flex; gap:8px; align-items:center;">
+            Max W
+            <input id="maxWidth" type="number" value="1200" style="width:86px; padding:8px; border-radius:8px;">
+          </label>
+          <label style="display:flex; gap:8px; align-items:center;">
+            Max H
+            <input id="maxHeight" type="number" value="1200" style="width:86px; padding:8px; border-radius:8px;">
+          </label>
+        </div>
+      </div>
     </div>
 
-    <!-- Size comparison -->
-    <div class="sizeBox" id="sizeBox" style="display:none;">
-        <b>Before:</b> <span id="beforeSize">0 KB</span><br>
-        <b>After:</b> <span id="afterSize">0 KB</span>
+    <input id="fileInput" type="file" accept="image/*" multiple style="display:none;" />
+
+    <div class="gallery" id="gallery"></div>
+
+    <div class="total" style="margin-top:18px;">
+      <div style="flex:1">
+        <div class="progress-bg" style="height:12px;">
+          <div id="totalProgress" class="progress-bar" style="width:0%"></div>
+        </div>
+      </div>
+      <div class="label" id="totalLabel">0 / 0</div>
     </div>
 
-    <button onclick="startCompress()">Compress Image</button>
-    <button onclick="openModal()">Show Base64</button>
-    <button onclick="downloadImage()">Download Image</button>
-</div>
-
-<!-- Modal -->
-<div class="modal-bg" id="modal">
-    <div class="modal-box">
-        <h3>Compressed Base64 Output</h3>
-        <textarea id="outputBase64"></textarea>
-        <button class="close-btn" onclick="closeModal()">Close</button>
+    <!-- Modal for Base64 output -->
+    <div id="modalBg" class="modal-bg">
+      <div class="modal">
+        <h3 id="modalTitle">Base64</h3>
+        <textarea id="modalTextarea" readonly></textarea>
+        <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:8px;">
+          <button id="modalClose" class="btn secondary">Close</button>
+          <button id="modalCopy" class="btn">Copy</button>
+        </div>
+      </div>
     </div>
-</div>
+  </div>
 
 <script>
+/*
+  Multi-image compressor (gallery mode)
+  - preserves original filename (download as originalname.jpg)
+  - per-image and total progress
+  - compress individually or compress all
+*/
 
-let originalFileName = "";
+const dropZone = document.getElementById('dropZone');
+const fileInput = document.getElementById('fileInput');
+const gallery = document.getElementById('gallery');
+const compressAllBtn = document.getElementById('compressAllBtn');
+const clearBtn = document.getElementById('clearBtn');
+const totalProgress = document.getElementById('totalProgress');
+const totalLabel = document.getElementById('totalLabel');
 
-const dropZone = document.getElementById("dropZone");
-const uploadInput = document.getElementById("upload");
+const qualityInput = document.getElementById('quality');
+const maxWidthInput = document.getElementById('maxWidth');
+const maxHeightInput = document.getElementById('maxHeight');
 
-/* ---------- UPDATE DROPZONE WITH PREVIEW ---------- */
-function updateDropZone(file) {
-    const reader = new FileReader();
-    reader.onload = function(e) {
-        dropZone.innerHTML = `<img src="${e.target.result}">`;
-        dropZone.style.borderColor = "green";
-    };
-    reader.readAsDataURL(file);
+const modalBg = document.getElementById('modalBg');
+const modalTextarea = document.getElementById('modalTextarea');
+const modalTitle = document.getElementById('modalTitle');
+const modalClose = document.getElementById('modalClose');
+const modalCopy = document.getElementById('modalCopy');
+
+let items = []; // { id, file, name, preview, beforeKB, compressed, afterKB, status, progress }
+let compressingCount = 0;
+
+function humanKB(bytes) {
+  return (bytes/1024).toFixed(2) + ' KB';
 }
 
-/* ---------- Drag & Drop Handling ---------- */
-dropZone.onclick = () => uploadInput.click();
+function setTotalProgress(done, total) {
+  const percent = total === 0 ? 0 : Math.round((done/total) * 100);
+  totalProgress.style.width = percent + '%';
+  totalLabel.textContent = `${done} / ${total}`;
+}
 
-dropZone.ondragover = (e) => {
-    e.preventDefault();
-    dropZone.classList.add("dragover");
-};
+function createCard(item) {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.id = 'card-' + item.id;
 
-dropZone.ondragleave = () => dropZone.classList.remove("dragover");
+  const thumb = document.createElement('div');
+  thumb.className = 'thumb';
+  const img = document.createElement('img');
+  img.src = item.preview;
+  thumb.appendChild(img);
 
-dropZone.ondrop = (e) => {
-    e.preventDefault();
-    dropZone.classList.remove("dragover");
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  const nameSpan = document.createElement('div'); nameSpan.className='name'; nameSpan.textContent = item.name;
+  const sizeSpan = document.createElement('div'); sizeSpan.className='size'; sizeSpan.textContent = item.beforeKB;
+  meta.appendChild(nameSpan); meta.appendChild(sizeSpan);
 
-    if (e.dataTransfer.files.length > 0) {
-        const file = e.dataTransfer.files[0];
-        uploadInput.files = e.dataTransfer.files;
+  const progressBg = document.createElement('div'); progressBg.className='progress-bg';
+  const progressBar = document.createElement('div'); progressBar.className='progress-bar';
+  progressBar.style.width = (item.progress || 0) + '%';
+  progressBar.id = 'p-' + item.id;
+  progressBg.appendChild(progressBar);
 
-        originalFileName = file.name.split('.').slice(0, -1).join('.') || "compressed";
+  const afterText = document.createElement('div'); afterText.style.fontSize='13px'; afterText.style.color='#666';
+  afterText.id = 'after-' + item.id;
+  afterText.textContent = item.afterKB ? ('After: ' + item.afterKB) : 'After: —';
 
-        document.getElementById("fileName").value = originalFileName;
+  const actions = document.createElement('div'); actions.className='card-actions';
+  // compress button
+  const btnCompress = document.createElement('button');
+  btnCompress.className = 'small btn';
+  btnCompress.textContent = 'Compress';
+  btnCompress.onclick = () => compressSingle(item.id);
 
-        updateDropZone(file);
-    }
-};
+  // download button
+  const btnDownload = document.createElement('button');
+  btnDownload.className = 'small btn secondary';
+  btnDownload.textContent = 'Download';
+  btnDownload.onclick = () => downloadCompressed(item.id);
 
-uploadInput.onchange = () => {
-    if (uploadInput.files.length > 0) {
-        const file = uploadInput.files[0];
+  // show base64 button
+  const btnShow = document.createElement('button');
+  btnShow.className = 'small btn secondary';
+  btnShow.textContent = 'Show Base64';
+  btnShow.onclick = () => openModalFor(item.id);
 
-        originalFileName = file.name.split('.').slice(0, -1).join('.') || "compressed";
+  actions.appendChild(btnCompress);
+  actions.appendChild(btnDownload);
+  actions.appendChild(btnShow);
 
-        document.getElementById("fileName").value = originalFileName;
+  card.appendChild(thumb);
+  card.appendChild(meta);
+  card.appendChild(progressBg);
+  card.appendChild(afterText);
+  card.appendChild(actions);
 
-        updateDropZone(file);
-    }
-};
+  return card;
+}
 
-/* ---------- IMAGE COMPRESSION ---------- */
-function compressBase64(base64, quality, maxWidth, maxHeight) {
-    return new Promise((resolve, reject) => {
-        const img = new Image();
+function renderGallery() {
+  gallery.innerHTML = '';
+  items.forEach(it => {
+    gallery.appendChild(createCard(it));
+  });
+  setTotalProgress(items.filter(i=>i.compressed).length, items.length);
+}
 
-        img.onload = () => {
-            let w = img.width, h = img.height;
+function resetApp() {
+  items = [];
+  gallery.innerHTML = '';
+  setTotalProgress(0,0);
+}
 
-            if (w > maxWidth || h > maxHeight) {
-                if (w > h) { h = h * (maxWidth / w); w = maxWidth; }
-                else { w = w * (maxHeight / h); h = maxHeight; }
-            }
-
-            const canvas = document.createElement("canvas");
-            canvas.width = w;  
-            canvas.height = h;
-
-            const ctx = canvas.getContext("2d");
-            ctx.drawImage(img, 0, 0, w, h);
-
-            resolve(canvas.toDataURL("image/jpeg", quality));
+// handle file list (multiple)
+function handleFiles(fileList) {
+  const files = Array.from(fileList);
+  const startIndex = items.length;
+  const readPromises = files.map((file, idx) => {
+    const id = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,8) + '-' + (startIndex + idx);
+    return new Promise((res) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const preview = e.target.result;
+        const beforeKB = humanKB(file.size);
+        // original filename without extension
+        const base = file.name.split('.').slice(0, -1).join('.') || file.name;
+        const item = {
+          id, file, name: base, preview, beforeKB, compressed: null, afterKB: null, status: 'idle', progress: 0
         };
-
-        img.onerror = reject;
-        img.src = base64;
+        items.push(item);
+        res(item);
+      };
+      reader.readAsDataURL(file);
     });
+  });
+
+  Promise.all(readPromises).then(() => {
+    renderGallery();
+  });
 }
 
-async function startCompress() {
-    const file = uploadInput.files[0];
-    if (!file) return alert("Please upload an image!");
+/* Drag & drop wiring */
+dropZone.addEventListener('click', () => fileInput.click());
+dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', (e) => {
+  e.preventDefault(); dropZone.classList.remove('dragover');
+  if (e.dataTransfer.files && e.dataTransfer.files.length) {
+    handleFiles(e.dataTransfer.files);
+  }
+});
 
-    const beforeSizeKB = (file.size / 1024).toFixed(2);
-    document.getElementById("beforeSize").innerText = beforeSizeKB + " KB";
+fileInput.addEventListener('change', (e) => {
+  if (e.target.files && e.target.files.length) handleFiles(e.target.files);
+});
 
-    document.getElementById("progressContainer").style.display = "block";
-    document.getElementById("progressBar").style.width = "0%";
-
-    let p = 0;
-    let fakeInterval = setInterval(() => {
-        if (p < 80) {
-            p += 4;
-            document.getElementById("progressBar").style.width = p + "%";
-        }
-    }, 150);
-
-    const reader = new FileReader();
-    reader.onload = async function(e) {
-        const base64 = e.target.result;
-
-        const quality = parseFloat(document.getElementById("quality").value);
-        const maxWidth = parseInt(document.getElementById("maxWidth").value);
-        const maxHeight = parseInt(document.getElementById("maxHeight").value);
-
-        const compressed = await compressBase64(base64, quality, maxWidth, maxHeight);
-
-        clearInterval(fakeInterval);
-        document.getElementById("progressBar").style.width = "100%";
-        document.getElementById("progressText").innerText = "Done!";
-
-        document.getElementById("outputBase64").value = compressed;
-
-        const afterSize = Math.round((compressed.length * 0.75) / 1024);
-        document.getElementById("afterSize").innerText = afterSize + " KB";
-        document.getElementById("sizeBox").style.display = "block";
-
-        setTimeout(() => {
-            document.getElementById("progressContainer").style.display = "none";
-        }, 1200);
+/* Compression function using canvas */
+function compressDataURL(dataUrl, quality, maxW, maxH) {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => {
+      let w = img.width, h = img.height;
+      if (w > maxW || h > maxH) {
+        if (w > h) { h = Math.round(h * (maxW / w)); w = maxW; }
+        else { w = Math.round(w * (maxH / h)); h = maxH; }
+      }
+      const canvas = document.createElement('canvas');
+      canvas.width = w; canvas.height = h;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(img, 0, 0, w, h);
+      // compress to jpeg
+      const outData = canvas.toDataURL('image/jpeg', quality);
+      resolve(outData);
     };
-
-    reader.readAsDataURL(file);
+    img.onerror = (err) => reject(err);
+    img.src = dataUrl;
+  });
 }
 
-function downloadImage() {
-    const base64 = document.getElementById("outputBase64").value;
-    if (!base64) return alert("Compress an image first!");
-
-    let nameInput = document.getElementById("fileName").value.trim();
-
-    let fileNameToUse = nameInput !== "" ? nameInput : originalFileName;
-
-    const a = document.createElement("a");
-    a.href = base64;
-    a.download = fileNameToUse + ".jpg";
-    a.click();
+/* utility: update UI progress for a single item */
+function setItemProgress(id, pct) {
+  const bar = document.getElementById('p-' + id);
+  if (bar) bar.style.width = pct + '%';
+  const item = items.find(i=>i.id===id);
+  if (item) item.progress = pct;
 }
 
-function openModal() {
-    document.getElementById("modal").style.display = "flex";
+/* compress a single item by id */
+async function compressSingle(id) {
+  const item = items.find(i=>i.id===id);
+  if (!item) return;
+  if (item.status === 'compressing') return;
+  item.status = 'compressing';
+  // show fake progress to 70%
+  let p = 0;
+  setItemProgress(id, 2);
+  const fake = setInterval(() => {
+    if (p < 70) { p += Math.random()*8; if (p>70) p=70; setItemProgress(id, Math.round(p)); }
+  }, 160);
+
+  try {
+    // we have item.preview (dataURL)
+    const q = parseFloat(qualityInput.value) || 0.7;
+    const maxW = parseInt(maxWidthInput.value) || 1200;
+    const maxH = parseInt(maxHeightInput.value) || 1200;
+    const out = await compressDataURL(item.preview, q, maxW, maxH);
+
+    clearInterval(fake);
+    setItemProgress(id, 95);
+    // allow tiny delay then finalize
+    await new Promise(r => setTimeout(r, 220));
+    item.compressed = out;
+    item.afterKB = humanKB(Math.round((out.length * 0.75))); // rough estimate
+    item.status = 'done';
+    setItemProgress(id, 100);
+
+    // update UI elements
+    const afterEl = document.getElementById('after-' + id);
+    if (afterEl) afterEl.textContent = 'After: ' + item.afterKB;
+
+    // update total progress
+    setTotalProgress(items.filter(i=>i.compressed).length, items.length);
+  } catch (err) {
+    clearInterval(fake);
+    item.status = 'error';
+    setItemProgress(id, 0);
+    console.error('compress error', err);
+    alert('Failed to compress ' + item.name);
+  }
 }
 
-function closeModal() {
-    document.getElementById("modal").style.display = "none";
+/* Compress all items in sequence (to avoid huge memory spike) */
+async function compressAll() {
+  if (!items.length) return alert('No images selected');
+  // compress only items not yet compressed
+  const toProcess = items.filter(i => !i.compressed);
+  if (!toProcess.length) return alert('All images already compressed');
+
+  compressAllBtn.disabled = true;
+  clearBtn.disabled = true;
+
+  let done = items.filter(i=>i.compressed).length;
+  setTotalProgress(done, items.length);
+
+  for (let i=0;i<toProcess.length;i++) {
+    const it = toProcess[i];
+    await compressSingle(it.id);
+    done++;
+    setTotalProgress(done, items.length);
+  }
+
+  compressAllBtn.disabled = false;
+  clearBtn.disabled = false;
 }
 
+/* Download compressed (use original filename + .jpg) */
+function downloadCompressed(id) {
+  const item = items.find(i=>i.id===id);
+  if (!item) return alert('File not ready');
+  if (!item.compressed) return alert('Compress this image first');
+
+  const link = document.createElement('a');
+  const outName = (item.name || 'compressed') + '.jpg';
+  link.href = item.compressed;
+  link.download = outName;
+  link.click();
+}
+
+/* open modal to show base64 (per-image) */
+function openModalFor(id) {
+  const item = items.find(i=>i.id===id);
+  if (!item) return;
+  if (!item.compressed) return alert('Compress first to view Base64');
+  modalTitle.textContent = 'Base64 — ' + (item.name || 'image');
+  modalTextarea.value = item.compressed;
+  modalBg.style.display = 'flex';
+}
+
+/* copy modal content */
+modalCopy.onclick = () => {
+  modalTextarea.select();
+  document.execCommand('copy');
+  modalCopy.textContent = 'Copied!';
+  setTimeout(()=> modalCopy.textContent = 'Copy', 900);
+};
+modalClose.onclick = () => { modalBg.style.display = 'none'; };
+
+/* wire top buttons */
+compressAllBtn.addEventListener('click', compressAll);
+clearBtn.addEventListener('click', () => {
+  if (!confirm('Clear all selected images?')) return;
+  items = [];
+  renderGallery();
+  setTotalProgress(0,0);
+});
+
+/* render helper - rebuild gallery when items change */
+function renderGallery() {
+  gallery.innerHTML = '';
+  items.forEach(it => {
+    const card = createCardFor(it);
+    gallery.appendChild(card);
+  });
+  setTotalProgress(items.filter(i=>i.compressed).length, items.length);
+}
+
+/* createCardFor uses same structure but ensures buttons reference live item */
+function createCardFor(item) {
+  const card = document.createElement('div');
+  card.className = 'card';
+  card.id = 'card-' + item.id;
+
+  const thumb = document.createElement('div');
+  thumb.className = 'thumb';
+  const image = document.createElement('img');
+  image.src = item.preview;
+  thumb.appendChild(image);
+
+  const meta = document.createElement('div');
+  meta.className = 'meta';
+  const nameSpan = document.createElement('div'); nameSpan.className='name'; nameSpan.textContent = item.name;
+  const sizeSpan = document.createElement('div'); sizeSpan.className='size'; sizeSpan.textContent = item.beforeKB;
+  meta.appendChild(nameSpan); meta.appendChild(sizeSpan);
+
+  const progressBg = document.createElement('div'); progressBg.className='progress-bg';
+  const progressBar = document.createElement('div'); progressBar.className='progress-bar';
+  progressBar.style.width = (item.progress || 0) + '%';
+  progressBar.id = 'p-' + item.id;
+  progressBg.appendChild(progressBar);
+
+  const afterText = document.createElement('div'); afterText.style.fontSize='13px'; afterText.style.color='#666';
+  afterText.id = 'after-' + item.id;
+  afterText.textContent = item.afterKB ? ('After: ' + item.afterKB) : 'After: —';
+
+  const actions = document.createElement('div'); actions.className='card-actions';
+  const btnCompress = document.createElement('button'); btnCompress.className = 'small btn'; btnCompress.textContent = 'Compress';
+  btnCompress.onclick = () => compressSingle(item.id);
+
+  const btnDownload = document.createElement('button'); btnDownload.className='small btn secondary'; btnDownload.textContent='Download';
+  btnDownload.onclick = () => downloadCompressed(item.id);
+
+  const btnShow = document.createElement('button'); btnShow.className='small btn secondary'; btnShow.textContent='Show Base64';
+  btnShow.onclick = () => openModalFor(item.id);
+
+  actions.appendChild(btnCompress);
+  actions.appendChild(btnDownload);
+  actions.appendChild(btnShow);
+
+  card.appendChild(thumb);
+  card.appendChild(meta);
+  card.appendChild(progressBg);
+  card.appendChild(afterText);
+  card.appendChild(actions);
+
+  return card;
+}
+
+/* Small helper to update UI progress bar when setItemProgress invoked externally */
+function setItemProgress(id, pct) {
+  const bar = document.getElementById('p-' + id);
+  if (bar) bar.style.width = pct + '%';
+  const it = items.find(x=>x.id===id);
+  if (it) it.progress = pct;
+}
+
+/* initial total state */
+setTotalProgress(0,0);
 </script>
 </body>
 </html>
