@@ -1,479 +1,358 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<title>Multi Image Compressor — Gallery + Compare + ZIP</title>
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-
-<!-- JSZip for ZIP feature -->
-<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+<meta charset="UTF-8">
+<title>Image Compressor Machi</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
 
 <style>
-  * { box-sizing: border-box; }
-  body {
-    font-family: Inter, Arial, sans-serif;
-    background: #f3f6fb;
-    margin: 0;
-    padding: 28px;
-    display: flex;
-    justify-content: center;
-  }
-  .app {
-    width: 100%;
-    max-width: 1100px;
-    background: #fff;
-    border-radius: 12px;
-    padding: 20px;
-    box-shadow: 0 8px 30px rgba(20,30,60,0.08);
-  }
-  h1 { margin: 0 0 14px 0; font-size: 20px; }
-  p.lead { margin: 0 0 18px 0; color: #556; }
+    body {
+        font-family: Arial, sans-serif;
+        background: #f2f2f2;
+        padding: 20px;
+    }
 
-  .top {
-    display:flex;
-    gap:12px;
-    align-items:center;
-    margin-bottom:18px;
-  }
-  #dropZone {
-    flex: 1;
-    min-height:94px;
-    border: 2px dashed #2b7cff;
-    border-radius:10px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    padding: 12px;
-    color:#2b7cff;
-    text-align:center;
-    cursor:pointer;
-    background: linear-gradient(180deg, rgba(43,124,255,0.03), transparent);
-  }
-  #dropZone.dragover { background: #eaf3ff; }
+    .drop-zone {
+        border: 3px dashed #999;
+        padding: 30px;
+        text-align: center;
+        background: #fff;
+        border-radius: 10px;
+        cursor: pointer;
+    }
 
-  .btn {
-    background:#2b7cff;
-    border:none;
-    color:white;
-    padding:10px 14px;
-    border-radius:8px;
-    cursor:pointer;
-    font-weight:600;
-  }
-  .btn.secondary {
-    background:#f0f4fb;
-    color:#234;
-    border:1px solid #e0e7ff;
-  }
+    .drop-zone.dragover {
+        border-color: #4CAF50;
+        background: #eaffea;
+    }
 
-  /* gallery */
-  .gallery {
-    margin-top:18px;
-    display:grid;
-    grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
-    gap:14px;
-  }
-  .card {
-    background:#fff;
-    border-radius:10px;
-    padding:10px;
-    border:1px solid #eef3ff;
-    display:flex;
-    flex-direction:column;
-    gap:8px;
-    min-height:260px;
-  }
-  .thumb {
-    flex:1;
-    border-radius:8px;
-    background:#f7fafc;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    overflow:hidden;
-  }
-  .thumb img { width:100%; height:100%; object-fit:cover; }
+    .item {
+        background: #fff;
+        padding: 12px;
+        margin-top: 10px;
+        border-radius: 8px;
+        display: flex;
+        gap: 15px;
+        align-items: center;
+        border: 1px solid #ddd;
+    }
 
-  .meta { font-size:13px; color:#334; display:flex; justify-content:space-between; }
-  .name { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:70%; }
-  .size { color:#667; font-size:12px; }
+    .thumb {
+        width: 80px;
+        height: 80px;
+        object-fit: cover;
+        border-radius: 6px;
+        border: 1px solid #ccc;
+    }
 
-  .progress-bg { width:100%; height:10px; background:#eef4ff; border-radius:6px; overflow:hidden; }
-  .progress-bar { width:0%; height:100%; background:#2b7cff; transition:width 0.25s ease; }
+    .btn { 
+        padding: 10px 18px; 
+        background: #4CAF50; 
+        color: #fff; 
+        border: none; 
+        border-radius: 6px; 
+        cursor: pointer;
+        font-size: 15px;
+    }
 
-  .card-actions { display:flex; gap:8px; flex-wrap:wrap; }
-  .small { padding:8px 10px; font-size:13px; border-radius:8px; }
+    .btn.secondary {
+        background: #555;
+    }
 
-  /* modal */
-  .modal-bg {
-    display:none;
-    position:fixed;
-    inset:0;
-    background: rgba(0,0,0,0.45);
-    align-items:center;
-    justify-content:center;
-    z-index:60;
-    padding:18px;
-  }
-  .modal {
-    width:92%;
-    max-width:920px;
-    background:white;
-    border-radius:10px;
-    padding:14px;
-  }
-  .modal textarea { width:100%; height:240px; padding:10px; font-family:monospace; white-space:pre-wrap; }
+    .btn.small { padding: 6px 10px; font-size: 13px; }
+    .btn.blue { background: #0b79d0; }
 
-  /* hover-fade compare */
-  .compare-frame {
-    width:100%; height:420px; background:#111;
-    border-radius:8px; overflow:hidden; position:relative;
-  }
-  .img-wrap { position:absolute; inset:0; transition:opacity 300ms; }
-  .img-wrap.top { opacity:0; }
-  .compare-frame.hover .img-wrap.top { opacity:1; }
+    .modal {
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.85);
+        display: none;
+        align-items: center;
+        justify-content: center;
+        padding: 30px;
+    }
 
-  .compare-frame img { width:100%; height:100%; object-fit:contain; }
+    .modal-content {
+        position: relative;
+        background: #000;
+        padding: 20px;
+        border-radius: 8px;
+        max-width: 90%;
+    }
 
-  @media(max-width:640px){ .compare-frame{height:300px;} }
+    /* Compare Buttons Top Right */
+    .compare-buttons {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        display: flex;
+        gap: 8px;
+        z-index: 20;
+    }
+
+    .compare-img-container {
+        position: relative;
+        max-width: 900px;
+        max-height: 600px;
+        overflow: hidden;
+    }
+
+    /* Hover Fade Mode */
+    #hoverContainer img {
+        position: absolute;
+        top: 0; left: 0;
+        width: 100%;
+        transition: opacity 0.3s ease;
+    }
+
+    #hoverContainer .top:hover {
+        opacity: 0;
+    }
+
+    /* Side-by-Side */
+    #sideBySideContainer {
+        display: none;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+        width: 100%;
+    }
+
+    #sideBySideContainer img {
+        width: 100%;
+        border-radius: 5px;
+    }
+
 </style>
+
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
 </head>
 <body>
-<div class="app">
 
-<h1>Multi Image Compressor — Compare + ZIP</h1>
-<p class="lead">Upload multiple images → compress → compare → download → ZIP.</p>
+<h2>Image Compressor Machi 🔥</h2>
 
-<div class="top">
-  <div id="dropZone">Drag & drop images or click</div>
-
-  <div style="width:12px"></div>
-
-  <div style="display:flex; flex-direction:column; gap:8px; min-width:230px;">
-    <div style="display:flex; gap:8px;">
-      <button id="compressAllBtn" class="btn">Compress All</button>
-      <button id="zipAllBtn" class="btn secondary">ZIP All</button>
-      <button id="clearBtn" class="btn secondary">Clear</button>
-    </div>
-
-    <div style="display:flex; gap:8px;">
-      <label>Quality
-        <input id="quality" type="number" min="0.1" max="1" step="0.05" value="0.7" style="width:70px;">
-      </label>
-      <label>Max W
-        <input id="maxWidth" type="number" value="1200" style="width:70px;">
-      </label>
-      <label>Max H
-        <input id="maxHeight" type="number" value="1200" style="width:70px;">
-      </label>
-    </div>
-  </div>
+<div id="dropZone" class="drop-zone">
+    <p>Drag & drop images here OR click<br><br>📸</p>
+    <input type="file" id="fileInput" multiple accept="image/*" style="display:none;">
 </div>
 
-<input id="fileInput" type="file" accept="image/*" multiple hidden />
+<div id="list"></div>
 
-<div id="gallery" class="gallery"></div>
- <!-- Base64 Modal -->
-<div id="modalBase64" class="modal-bg">
-  <div class="modal">
-    <h3 id="modalBase64Title"></h3>
-    <textarea id="modalBase64Textarea" readonly></textarea>
-    <div style="display:flex; gap:8px; justify-content:end; margin-top:10px;">
-      <button id="modalBase64Close" class="btn secondary">Close</button>
-      <button id="modalBase64Copy" class="btn">Copy</button>
-    </div>
-  </div>
+<br>
+
+<div style="display:flex; gap:10px;">
+    <button id="compressAllBtn" class="btn">Compress All</button>
+    <button id="zipAllBtn" class="btn secondary">ZIP All</button>
+    <button id="clearBtn" class="btn secondary">Clear</button>
 </div>
+
 
 <!-- Compare Modal -->
-<div id="modalCompare" class="modal-bg">
-  <div class="modal">
-    <h3 id="modalCompareTitle"></h3>
+<div id="compareModal" class="modal">
+    <div class="modal-content">
 
-    <div id="compareFrame" class="compare-frame">
-      <div class="img-wrap bottom"><img id="compareOriginal"></div>
-      <div class="img-wrap top"><img id="compareCompressed"></div>
-    </div>
+        <!-- Compare Buttons Top Right (C2) -->
+        <div class="compare-buttons">
+            <button id="btnHover" class="btn small blue">Hover Fade</button>
+            <button id="btnSide" class="btn small">Side-by-Side</button>
+        </div>
 
-    <div style="display:flex; justify-content:space-between; margin-top:6px; font-size:13px;">
-      <div>Hover to fade between Original → Compressed</div>
-      <button id="compareToggle" class="btn secondary" style="padding:6px 10px;">Toggle</button>
-    </div>
+        <div class="compare-img-container">
 
-    <div style="display:flex; justify-content:end; margin-top:12px;">
-      <button id="modalCompareClose" class="btn secondary">Close</button>
+            <!-- Hover Fade Mode -->
+            <div id="hoverContainer">
+                <img id="compareOriginal" class="bottom">
+                <img id="compareCompressed" class="top">
+            </div>
+
+            <!-- Side-by-Side Mode -->
+            <div id="sideBySideContainer">
+                <img id="sideOriginal">
+                <img id="sideCompressed">
+            </div>
+
+        </div>
+
+        <br>
+        <button onclick="closeCompare()" class="btn secondary small">Close</button>
     </div>
-  </div>
 </div>
 
-</div> <!-- end .app -->
 
 <script>
-/* =====================
-   HELPERS
-===================== */
-function formatSize(b){
-  if(b<1024) return b+" B";
-  if(b<1024*1024) return (b/1024).toFixed(2)+" KB";
-  return (b/1024/1024).toFixed(2)+" MB";
+let items = [];
+
+function $(id){ return document.getElementById(id); }
+
+/* ==========================
+   DRAG & DROP
+   ========================== */
+const dz = $("dropZone");
+dz.onclick = () => $("fileInput").click();
+
+dz.ondragover = e => { e.preventDefault(); dz.classList.add("dragover"); }
+dz.ondragleave = () => dz.classList.remove("dragover");
+
+dz.ondrop = e => {
+    e.preventDefault();
+    dz.classList.remove("dragover");
+    handleFiles(e.dataTransfer.files);
+};
+
+$("fileInput").onchange = () => handleFiles($("fileInput").files);
+
+function handleFiles(files){
+    [...files].forEach(file => addItem(file));
 }
-function percentSaved(a,b){
-  if(!a||!b) return "—";
-  return (((a-b)/a)*100).toFixed(1)+"%";
-}
 
-/* =====================
-   STATE
-===================== */
-let items = []; 
-const dropZone = document.getElementById("dropZone");
-const fileInput = document.getElementById("fileInput");
-const gallery = document.getElementById("gallery");
-
-const qualityInput = document.getElementById("quality");
-const maxWidthInput = document.getElementById("maxWidth");
-const maxHeightInput = document.getElementById("maxHeight");
-
-/* Modal refs */
-const modalBase64 = document.getElementById("modalBase64");
-const modalBase64Title = document.getElementById("modalBase64Title");
-const modalBase64Textarea = document.getElementById("modalBase64Textarea");
-const modalBase64Close = document.getElementById("modalBase64Close");
-const modalBase64Copy = document.getElementById("modalBase64Copy");
-
-const modalCompare = document.getElementById("modalCompare");
-const modalCompareTitle = document.getElementById("modalCompareTitle");
-const compareFrame = document.getElementById("compareFrame");
-const compareOriginal = document.getElementById("compareOriginal");
-const compareCompressed = document.getElementById("compareCompressed");
-const compareToggle = document.getElementById("compareToggle");
-const modalCompareClose = document.getElementById("modalCompareClose");
-
-let compareVisible = false;
-
-/* =====================
-   FILE HANDLING
-===================== */
-dropZone.onclick = ()=> fileInput.click();
-dropZone.addEventListener("dragover", e=>{ e.preventDefault(); dropZone.classList.add("dragover"); });
-dropZone.addEventListener("dragleave", ()=> dropZone.classList.remove("dragover"));
-dropZone.addEventListener("drop", e=>{
-  e.preventDefault();
-  dropZone.classList.remove("dragover");
-  handleFiles(e.dataTransfer.files);
-});
-fileInput.addEventListener("change", e=> handleFiles(e.target.files));
-
-function handleFiles(list){
-  [...list].forEach(file=>{
-    const reader=new FileReader();
-    reader.onload=e=>{
-      const id=Math.random().toString(36).slice(2);
-      items.push({
-        id,
-        file,
-        name:file.name.replace(/\.[^.]+$/, ""),
-        preview:e.target.result,
-        beforeBytes:file.size,
-        compressed:null,
-        afterBytes:null,
-        progress:0
-      });
-      render();
-    };
+/* ==========================
+   ADD ITEM UI
+   ========================== */
+function addItem(file){
+    const reader = new FileReader();
+    reader.onload = e => {
+        const obj = {
+            file,
+            name: file.name.replace(/\.[^.]+$/, ""),
+            originalSize: file.size,
+            preview: e.target.result,
+            compressed: null,
+            compressedSize: null
+        };
+        items.push(obj);
+        render();
+    }
     reader.readAsDataURL(file);
-  });
 }
 
-/* =====================
-   RENDER
-===================== */
 function render(){
-  gallery.innerHTML = items.map(it=>`
-    <div class="card">
-      <div class="thumb"><img src="${it.preview}"></div>
-
-      <div class="meta">
-        <div class="name">${it.name}</div>
-        <div class="size">${formatSize(it.beforeBytes)}</div>
-      </div>
-
-      <div class="progress-bg">
-        <div id="p-${it.id}" class="progress-bar" style="width:${it.progress}%"></div>
-      </div>
-
-      <div id="stats-${it.id}" style="font-size:13px;">
-        <div>Before: ${formatSize(it.beforeBytes)}</div>
-        <div>After: ${it.afterBytes ? formatSize(it.afterBytes) : "—"}</div>
-        <div>Saved: ${it.afterBytes ? percentSaved(it.beforeBytes,it.afterBytes) : "—"}</div>
-      </div>
-
-      <div class="card-actions">
-        <button class="small btn" onclick="compressOne('${it.id}')">Compress</button>
-        <button class="small btn secondary" onclick="downloadOne('${it.id}')">Download</button>
-        <button class="small btn secondary" onclick="openBase64('${it.id}')">Base64</button>
-        <button class="small btn secondary" onclick="openCompare('${it.id}')">Compare</button>
-      </div>
-    </div>
-  `).join("");
-}
-/* =====================
-   COMPRESSION
-===================== */
-function updateProgress(id,p){
-  const bar=document.getElementById("p-"+id);
-  if(bar) bar.style.width=p+"%";
+    $("list").innerHTML = "";
+    items.forEach((it,i)=>{
+        const row = document.createElement("div");
+        row.className = "item";
+        row.innerHTML = `
+            <img class="thumb" src="${it.preview}">
+            <div style="flex:1;">
+                <b>${it.name}</b><br>
+                Original: ${(it.originalSize/1024).toFixed(1)} KB<br>
+                ${it.compressed ? `Compressed: ${(it.compressedSize/1024).toFixed(1)} KB` : ""}
+            </div>
+            <button class="btn small" onclick="compressOne(${i})">Compress</button>
+            ${it.compressed ? `<button class="btn small blue" onclick="showCompare(${i})">Compare</button>` : ""}
+        `;
+        $("list").appendChild(row);
+    });
 }
 
-function compressDataURL(dataUrl,q,maxW,maxH){
-  return new Promise((res,rej)=>{
-    const img=new Image();
-    img.onload=()=>{
-      let w=img.width, h=img.height;
+/* ==========================
+   IMAGE COMPRESS
+   ========================== */
+function compressOne(index){
+    const it = items[index];
 
-      if(w>maxW || h>maxH){
-        if(w>h){ h=Math.round(h*(maxW/w)); w=maxW; }
-        else   { w=Math.round(w*(maxH/h)); h=maxH; }
-      }
+    const img = new Image();
+    img.src = it.preview;
+    img.onload = () => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
 
-      const c=document.createElement("canvas");
-      c.width=w; c.height=h;
-      c.getContext("2d").drawImage(img,0,0,w,h);
+        canvas.width = img.width;
+        canvas.height = img.height;
 
-      res(c.toDataURL("image/jpeg",q));
+        ctx.drawImage(img,0,0);
+
+        const compressed = canvas.toDataURL("image/jpeg", 0.6);
+        it.compressed = compressed;
+
+        // compute size
+        it.compressedSize = Math.round((compressed.length*3/4));
+
+        render();
     };
-    img.onerror=rej;
-    img.src=dataUrl;
-  });
 }
 
-async function compressOne(id){
-  const it=items.find(x=>x.id===id);
-  if(!it) return;
-  
-  let prog=0;
-  const fake=setInterval(()=>{
-    prog=Math.min(70,prog+Math.random()*10);
-    updateProgress(id,prog);
-  },120);
-
-  const q=parseFloat(qualityInput.value)||0.7;
-  const maxW=parseInt(maxWidthInput.value)||1200;
-  const maxH=parseInt(maxHeightInput.value)||1200;
-
-  const out=await compressDataURL(it.preview,q,maxW,maxH);
-
-  clearInterval(fake);
-  updateProgress(id,100);
-
-  it.compressed=out;
-  it.afterBytes=Math.round(out.length*0.75);
-
-  document.getElementById("stats-"+id).innerHTML=`
-    <div>Before: ${formatSize(it.beforeBytes)}</div>
-    <div>After: ${formatSize(it.afterBytes)}</div>
-    <div>Saved: ${percentSaved(it.beforeBytes,it.afterBytes)}</div>
-  `;
-}
-
-async function compressAll(){
-  for(const it of items){
-    if(!it.afterBytes) await compressOne(it.id);
-  }
-}
-
-/* =====================
-   DOWNLOAD SINGLE
-===================== */
-function downloadOne(id){
-  const it=items.find(x=>x.id===id);
-  if(!it || !it.compressed) return alert("Compress first");
-
-  const a=document.createElement("a");
-  a.href=it.compressed;
-  a.download=it.name+"_compressed.jpg";
-  a.click();
-}
-
-/* =====================
-   ZIP ALL COMPRESSED
-===================== */
-async function zipAll(){
-  const list=items.filter(i=>i.compressed);
-  if(!list.length) return alert("No compressed images");
-
-  const zip=new JSZip();
-
-  for(const it of list){
-    const blob=await fetch(it.compressed).then(r=>r.blob());
-    zip.file(it.name+"_compressed.jpg", blob);
-  }
-
-  const output=await zip.generateAsync({type:"blob"});
-  const a=document.createElement("a");
-  a.href=URL.createObjectURL(output);
-  a.download="compressed_images.zip";
-  a.click();
-}
-
-/* =====================
-   BASE64 MODAL
-===================== */
-function openBase64(id){
-  const it=items.find(x=>x.id===id);
-  if(!it || !it.compressed) return alert("Compress first");
-  modalBase64Title.textContent=it.name;
-  modalBase64Textarea.value=it.compressed;
-  modalBase64.style.display="flex";
-}
-modalBase64Close.onclick=()=> modalBase64.style.display="none";
-modalBase64Copy.onclick=()=>{
-  navigator.clipboard.writeText(modalBase64Textarea.value);
-  modalBase64Copy.textContent="Copied!";
-  setTimeout(()=>modalBase64Copy.textContent="Copy",900);
+$("compressAllBtn").onclick = () => {
+    items.forEach((_,i)=>compressOne(i));
 };
 
-/* =====================
+/* ==========================
    COMPARE MODAL
-===================== */
-function openCompare(id){
-  const it=items.find(x=>x.id===id);
-  if(!it || !it.compressed) return alert("Compress first");
+   ========================== */
+function showCompare(i){
+    const it = items[i];
 
-  modalCompareTitle.textContent=it.name;
-  compareOriginal.src=it.preview;
-  compareCompressed.src=it.compressed;
+    $("compareOriginal").src = it.preview;
+    $("compareCompressed").src = it.compressed;
 
-  compareFrame.classList.remove("hover");
-  compareVisible=false;
+    $("sideOriginal").src = it.preview;
+    $("sideCompressed").src = it.compressed;
 
-  modalCompare.style.display="flex";
+    // default = hover mode
+    showHover();
+
+    $("compareModal").style.display = "flex";
 }
 
-modalCompareClose.onclick=()=> modalCompare.style.display="none";
+function closeCompare(){
+    $("compareModal").style.display = "none";
+}
 
-compareFrame.addEventListener("mouseenter",()=>compareFrame.classList.add("hover"));
-compareFrame.addEventListener("mouseleave",()=>compareFrame.classList.remove("hover"));
+/* ===== Toggle Modes ===== */
+function showHover(){
+    $("hoverContainer").style.display = "block";
+    $("sideBySideContainer").style.display = "none";
 
-compareToggle.onclick=()=>{
-  compareVisible=!compareVisible;
-  if(compareVisible) compareFrame.classList.add("hover");
-  else compareFrame.classList.remove("hover");
+    $("btnHover").classList.add("blue");
+    $("btnSide").classList.remove("blue");
+}
+
+function showSide(){
+    $("hoverContainer").style.display = "none";
+    $("sideBySideContainer").style.display = "grid";
+
+    $("btnHover").classList.remove("blue");
+    $("btnSide").classList.add("blue");
+}
+
+$("btnHover").onclick = showHover;
+$("btnSide").onclick = showSide;
+
+/* ==========================
+   ZIP ALL
+   ========================== */
+$("zipAllBtn").onclick = async ()=>{
+
+    const compressedItems = items.filter(it=>it.compressed);
+
+    if(compressedItems.length===0){
+        alert("Compress images first machi!");
+        return;
+    }
+
+    const zip = new JSZip();
+
+    for(const it of compressedItems){
+        const blob = await fetch(it.compressed).then(r=>r.blob());
+        zip.file(it.name + "_compressed.jpg", blob);
+    }
+
+    const content = await zip.generateAsync({type:"blob"});
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(content);
+    a.download = "compressed_images.zip";
+    a.click();
 };
 
-/* =====================
-   BUTTONS
-===================== */
-document.getElementById("compressAllBtn").onclick=compressAll;
-document.getElementById("zipAllBtn").onclick=zipAll;
-document.getElementById("clearBtn").onclick=()=>{
-  if(confirm("Clear all?")){
-    items=[];
-    gallery.innerHTML="";
-  }
+/* ==========================
+   CLEAR
+   ========================== */
+$("clearBtn").onclick = ()=>{
+    items = [];
+    render();
 };
+
 </script>
 
 </body>
 </html>
-
