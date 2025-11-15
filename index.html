@@ -2,48 +2,74 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<title>Image Compressor</title>
+<title>Base64 Image Compressor</title>
 <style>
+    * {
+        box-sizing: border-box;
+    }
+
     body {
         font-family: Arial, sans-serif;
+        background: #f0f0f0;
         margin: 0;
-        padding: 30px;
-        background: #f2f2f2;
+        padding: 40px 10px;
+        display: flex;
+        justify-content: center;
     }
+
     .container {
-        max-width: 600px;
-        margin: auto;
-        background: white;
-        padding: 20px;
-        border-radius: 10px;
-        box-shadow: 0 0 10px rgba(0,0,0,0.1);
-    }
-    input, button {
-        margin-top: 15px;
         width: 100%;
-        padding: 10px;
-        border-radius: 5px;
-        border: 1px solid #ccc;
+        max-width: 600px;
+        background: white;
+        padding: 25px;
+        border-radius: 12px;
+        box-shadow: 0 0 20px rgba(0, 0, 0, 0.1);
     }
+
+    h2 {
+        margin-top: 0;
+        margin-bottom: 20px;
+        text-align: center;
+    }
+
+    label {
+        font-weight: bold;
+        margin-top: 15px;
+        display: block;
+    }
+
+    input, textarea, button {
+        width: 100%;
+        padding: 12px;
+        margin-top: 8px;
+        border-radius: 8px;
+        border: 1px solid #ccc;
+        font-size: 15px;
+    }
+
+    textarea {
+        height: 160px;
+        resize: vertical;
+    }
+
     button {
-        background: #007bff;
+        background: #1a73e8;
         color: white;
+        border: none;
         cursor: pointer;
         font-size: 16px;
+        margin-top: 18px;
     }
+
     button:hover {
-        background: #0056b3;
+        background: #0f5fcc;
     }
+
     img {
         max-width: 100%;
         margin-top: 20px;
-        border-radius: 5px;
-    }
-    textarea {
-        width: 100%;
-        height: 150px;
-        margin-top: 15px;
-        padding: 10px;
+        border-radius: 8px;
+        display: none;
     }
 </style>
 </head>
@@ -52,23 +78,24 @@
 <div class="container">
     <h2>Base64 Image Compressor</h2>
 
+    <label>Choose File</label>
     <input type="file" id="upload" accept="image/*">
 
     <label>Quality (0 to 1)</label>
-    <input type="number" id="quality" min="0" max="1" step="0.1" value="0.7">
+    <input type="number" id="quality" step="0.1" min="0" max="1" value="0.7">
 
     <label>Max Width</label>
     <input type="number" id="maxWidth" value="800">
 
     <label>Max Height</label>
     <input type="number" id="maxHeight" value="800">
-    
+
     <label>File Name (without extension)</label>
     <input type="text" id="fileName" placeholder="compressed">
 
     <button onclick="startCompress()">Compress Image</button>
 
-    <img id="preview" style="display:none;">
+    <img id="preview">
 
     <textarea id="outputBase64" placeholder="Compressed Base64 will appear here..."></textarea>
 
@@ -83,7 +110,6 @@ function compressBase64(base64, quality, maxWidth, maxHeight) {
             let w = img.width;
             let h = img.height;
 
-            // Resize
             if (w > maxWidth || h > maxHeight) {
                 if (w > h) {
                     h = h * (maxWidth / w);
@@ -110,10 +136,7 @@ function compressBase64(base64, quality, maxWidth, maxHeight) {
 
 function startCompress() {
     const file = document.getElementById("upload").files[0];
-    if (!file) {
-        alert("Please upload an image.");
-        return;
-    }
+    if (!file) return alert("Please upload an image!");
 
     const quality = parseFloat(document.getElementById("quality").value);
     const maxWidth = parseInt(document.getElementById("maxWidth").value);
@@ -127,8 +150,6 @@ function startCompress() {
         document.getElementById("preview").src = compressed;
         document.getElementById("preview").style.display = "block";
         document.getElementById("outputBase64").value = compressed;
-
-        console.log("Compressed size:", (compressed.length / 1024).toFixed(2), "KB");
     };
     reader.readAsDataURL(file);
 }
@@ -140,13 +161,12 @@ function downloadImage() {
     let name = document.getElementById("fileName").value.trim();
     if (name === "") name = "compressed";
 
-    const link = document.createElement("a");
-    link.href = base64;
-    link.download = name + ".jpg";
-    link.click();
+    const a = document.createElement("a");
+    a.href = base64;
+    a.download = name + ".jpg";
+    a.click();
 }
 </script>
 
 </body>
 </html>
-
