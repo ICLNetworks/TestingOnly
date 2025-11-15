@@ -27,6 +27,34 @@
 
     h2 { text-align: center; }
 
+    /* Drop Zone */
+    #dropZone {
+        margin-top: 20px;
+        padding: 30px;
+        border: 2px dashed #1a73e8;
+        border-radius: 10px;
+        text-align: center;
+        color: #1a73e8;
+        font-size: 16px;
+        cursor: pointer;
+        min-height: 150px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+    }
+
+    #dropZone.dragover {
+        background: #e5f0ff;
+    }
+
+    #dropZone img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
+        border-radius: 10px;
+    }
+
     label {
         font-weight: bold;
         margin-top: 15px;
@@ -49,28 +77,6 @@
         cursor: pointer;
     }
     button:hover { background: #0f5fcc; }
-
-    img {
-        max-width: 100%;
-        margin-top: 20px;
-        border-radius: 8px;
-        display: none;
-    }
-
-    /* Drag & Drop */
-    #dropZone {
-        margin-top: 10px;
-        padding: 30px;
-        border: 2px dashed #1a73e8;
-        border-radius: 10px;
-        text-align: center;
-        color: #1a73e8;
-        font-size: 16px;
-        cursor: pointer;
-    }
-    #dropZone.dragover {
-        background: #e5f0ff;
-    }
 
     /* Progress Bar */
     #progressContainer {
@@ -123,7 +129,7 @@
 
     textarea {
         width: 100%;
-        height: 300px;
+        height: 280px;
         padding: 10px;
         font-size: 14px;
         white-space: pre-wrap;
@@ -144,7 +150,6 @@
 
     <!-- Drag & Drop -->
     <div id="dropZone">Drag & Drop image here<br>or click to upload</div>
-
     <input type="file" id="upload" accept="image/*" style="display:none;">
 
     <label>Quality (0 to 1)</label>
@@ -174,9 +179,6 @@
     </div>
 
     <button onclick="startCompress()">Compress Image</button>
-
-    <img id="preview">
-
     <button onclick="openModal()">Show Base64</button>
     <button onclick="downloadImage()">Download Image</button>
 </div>
@@ -192,10 +194,22 @@
 
 <script>
 
-// Drag & drop logic
+let originalFileName = "";
+
 const dropZone = document.getElementById("dropZone");
 const uploadInput = document.getElementById("upload");
 
+/* ---------- UPDATE DROPZONE WITH PREVIEW ---------- */
+function updateDropZone(file) {
+    const reader = new FileReader();
+    reader.onload = function(e) {
+        dropZone.innerHTML = `<img src="${e.target.result}">`;
+        dropZone.style.borderColor = "green";
+    };
+    reader.readAsDataURL(file);
+}
+
+/* ---------- Drag & Drop Handling ---------- */
 dropZone.onclick = () => uploadInput.click();
 
 dropZone.ondragover = (e) => {
@@ -210,11 +224,30 @@ dropZone.ondrop = (e) => {
     dropZone.classList.remove("dragover");
 
     if (e.dataTransfer.files.length > 0) {
+        const file = e.dataTransfer.files[0];
         uploadInput.files = e.dataTransfer.files;
+
+        originalFileName = file.name.split('.').slice(0, -1).join('.') || "compressed";
+
+        document.getElementById("fileName").value = originalFileName;
+
+        updateDropZone(file);
     }
 };
 
-// Compression logic
+uploadInput.onchange = () => {
+    if (uploadInput.files.length > 0) {
+        const file = uploadInput.files[0];
+
+        originalFileName = file.name.split('.').slice(0, -1).join('.') || "compressed";
+
+        document.getElementById("fileName").value = originalFileName;
+
+        updateDropZone(file);
+    }
+};
+
+/* ---------- IMAGE COMPRESSION ---------- */
 function compressBase64(base64, quality, maxWidth, maxHeight) {
     return new Promise((resolve, reject) => {
         const img = new Image();
@@ -252,7 +285,6 @@ async function startCompress() {
     document.getElementById("progressContainer").style.display = "block";
     document.getElementById("progressBar").style.width = "0%";
 
-    // Fake progress for UX
     let p = 0;
     let fakeInterval = setInterval(() => {
         if (p < 80) {
@@ -275,15 +307,10 @@ async function startCompress() {
         document.getElementById("progressBar").style.width = "100%";
         document.getElementById("progressText").innerText = "Done!";
 
-        document.getElementById("preview").src = compressed;
-        document.getElementById("preview").style.display = "block";
-
         document.getElementById("outputBase64").value = compressed;
 
-        // After size
         const afterSize = Math.round((compressed.length * 0.75) / 1024);
         document.getElementById("afterSize").innerText = afterSize + " KB";
-
         document.getElementById("sizeBox").style.display = "block";
 
         setTimeout(() => {
@@ -298,18 +325,20 @@ function downloadImage() {
     const base64 = document.getElementById("outputBase64").value;
     if (!base64) return alert("Compress an image first!");
 
-    let name = document.getElementById("fileName").value.trim();
-    if (name === "") name = "compressed";
+    let nameInput = document.getElementById("fileName").value.trim();
+
+    let fileNameToUse = nameInput !== "" ? nameInput : originalFileName;
 
     const a = document.createElement("a");
     a.href = base64;
-    a.download = name + ".jpg";
+    a.download = fileNameToUse + ".jpg";
     a.click();
 }
 
 function openModal() {
     document.getElementById("modal").style.display = "flex";
 }
+
 function closeModal() {
     document.getElementById("modal").style.display = "none";
 }
