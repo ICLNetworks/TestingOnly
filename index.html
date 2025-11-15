@@ -2,8 +2,12 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Multi Image Compressor — Gallery Mode</title>
+<title>Multi Image Compressor — Gallery + Compare + ZIP</title>
 <meta name="viewport" content="width=device-width,initial-scale=1" />
+
+<!-- JSZip for ZIP feature -->
+<script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
 <style>
   * { box-sizing: border-box; }
   body {
@@ -14,7 +18,6 @@
     display: flex;
     justify-content: center;
   }
-
   .app {
     width: 100%;
     max-width: 1100px;
@@ -23,22 +26,14 @@
     padding: 20px;
     box-shadow: 0 8px 30px rgba(20,30,60,0.08);
   }
-
   h1 { margin: 0 0 14px 0; font-size: 20px; }
   p.lead { margin: 0 0 18px 0; color: #556; }
 
-  /* top area */
   .top {
     display:flex;
     gap:12px;
     align-items:center;
     margin-bottom:18px;
-  }
-  .controls {
-    flex:1;
-    display:flex;
-    gap:10px;
-    align-items:center;
   }
   #dropZone {
     flex: 1;
@@ -70,18 +65,14 @@
     color:#234;
     border:1px solid #e0e7ff;
   }
-  .btn.danger {
-    background:#ff5b5b;
-  }
 
-  /* gallery grid */
+  /* gallery */
   .gallery {
     margin-top:18px;
     display:grid;
     grid-template-columns: repeat(auto-fill, minmax(210px, 1fr));
     gap:14px;
   }
-
   .card {
     background:#fff;
     border-radius:10px;
@@ -101,26 +92,17 @@
     justify-content:center;
     overflow:hidden;
   }
-  .thumb img { width:100%; height:100%; object-fit:cover; display:block; }
+  .thumb img { width:100%; height:100%; object-fit:cover; }
 
-  .meta { font-size:13px; color:#334; display:flex; justify-content:space-between; gap:8px; flex-wrap:wrap; }
-  .meta .name { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:70%; }
-  .meta .size { color:#667; font-size:12px; }
+  .meta { font-size:13px; color:#334; display:flex; justify-content:space-between; }
+  .name { font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:70%; }
+  .size { color:#667; font-size:12px; }
 
   .progress-bg { width:100%; height:10px; background:#eef4ff; border-radius:6px; overflow:hidden; }
   .progress-bar { width:0%; height:100%; background:#2b7cff; transition:width 0.25s ease; }
 
   .card-actions { display:flex; gap:8px; flex-wrap:wrap; }
   .small { padding:8px 10px; font-size:13px; border-radius:8px; }
-
-  /* total progress */
-  .total {
-    margin-top:14px;
-    display:flex;
-    gap:12px;
-    align-items:center;
-  }
-  .total .label { color:#556; font-size:13px; }
 
   /* modal */
   .modal-bg {
@@ -130,448 +112,368 @@
     background: rgba(0,0,0,0.45);
     align-items:center;
     justify-content:center;
-    z-index:50;
+    z-index:60;
+    padding:18px;
   }
   .modal {
     width:92%;
-    max-width:820px;
+    max-width:920px;
     background:white;
     border-radius:10px;
     padding:14px;
   }
-  .modal textarea { width:100%; height:280px; padding:10px; font-family:monospace; font-size:13px; white-space:pre-wrap; word-break:break-all; }
+  .modal textarea { width:100%; height:240px; padding:10px; font-family:monospace; white-space:pre-wrap; }
 
-  @media (max-width:640px) {
-    .top { flex-direction:column; align-items:stretch; }
-    #dropZone { min-height:120px; }
+  /* hover-fade compare */
+  .compare-frame {
+    width:100%; height:420px; background:#111;
+    border-radius:8px; overflow:hidden; position:relative;
   }
+  .img-wrap { position:absolute; inset:0; transition:opacity 300ms; }
+  .img-wrap.top { opacity:0; }
+  .compare-frame.hover .img-wrap.top { opacity:1; }
+
+  .compare-frame img { width:100%; height:100%; object-fit:contain; }
+
+  @media(max-width:640px){ .compare-frame{height:300px;} }
 </style>
 </head>
 <body>
-  <div class="app">
-    <h1>Multi Image Compressor — Gallery Mode</h1>
-    <p class="lead">Drop multiple images or click to select. Filenames are preserved (downloaded as <code>originalname.jpg</code>).</p>
+<div class="app">
 
-    <div class="top">
-      <div id="dropZone">Drag & drop images here or click to browse (multiple)</div>
+<h1>Multi Image Compressor — Compare + ZIP</h1>
+<p class="lead">Upload multiple images → compress → compare → download → ZIP.</p>
 
-      <div style="width:12px"></div>
+<div class="top">
+  <div id="dropZone">Drag & drop images or click</div>
 
-      <div style="display:flex; flex-direction:column; gap:8px; min-width:210px;">
-        <div style="display:flex; gap:8px;">
-          <button id="compressAllBtn" class="btn">Compress All</button>
-          <button id="clearBtn" class="btn secondary">Clear</button>
-        </div>
+  <div style="width:12px"></div>
 
-        <div style="display:flex; gap:8px;">
-          <label style="display:flex; gap:8px; align-items:center;">
-            Quality
-            <input id="quality" type="number" step="0.05" min="0.1" max="1" value="0.7" style="width:86px; padding:8px; border-radius:8px;">
-          </label>
-          <label style="display:flex; gap:8px; align-items:center;">
-            Max W
-            <input id="maxWidth" type="number" value="1200" style="width:86px; padding:8px; border-radius:8px;">
-          </label>
-          <label style="display:flex; gap:8px; align-items:center;">
-            Max H
-            <input id="maxHeight" type="number" value="1200" style="width:86px; padding:8px; border-radius:8px;">
-          </label>
-        </div>
-      </div>
+  <div style="display:flex; flex-direction:column; gap:8px; min-width:230px;">
+    <div style="display:flex; gap:8px;">
+      <button id="compressAllBtn" class="btn">Compress All</button>
+      <button id="zipAllBtn" class="btn secondary">ZIP All</button>
+      <button id="clearBtn" class="btn secondary">Clear</button>
     </div>
 
-    <input id="fileInput" type="file" accept="image/*" multiple style="display:none;" />
-
-    <div class="gallery" id="gallery"></div>
-
-    <div class="total" style="margin-top:18px;">
-      <div style="flex:1">
-        <div class="progress-bg" style="height:12px;">
-          <div id="totalProgress" class="progress-bar" style="width:0%"></div>
-        </div>
-      </div>
-      <div class="label" id="totalLabel">0 / 0</div>
-    </div>
-
-    <!-- Modal for Base64 output -->
-    <div id="modalBg" class="modal-bg">
-      <div class="modal">
-        <h3 id="modalTitle">Base64</h3>
-        <textarea id="modalTextarea" readonly></textarea>
-        <div style="display:flex; gap:8px; justify-content:flex-end; margin-top:8px;">
-          <button id="modalClose" class="btn secondary">Close</button>
-          <button id="modalCopy" class="btn">Copy</button>
-        </div>
-      </div>
+    <div style="display:flex; gap:8px;">
+      <label>Quality
+        <input id="quality" type="number" min="0.1" max="1" step="0.05" value="0.7" style="width:70px;">
+      </label>
+      <label>Max W
+        <input id="maxWidth" type="number" value="1200" style="width:70px;">
+      </label>
+      <label>Max H
+        <input id="maxHeight" type="number" value="1200" style="width:70px;">
+      </label>
     </div>
   </div>
+</div>
+
+<input id="fileInput" type="file" accept="image/*" multiple hidden />
+
+<div id="gallery" class="gallery"></div>
+ <!-- Base64 Modal -->
+<div id="modalBase64" class="modal-bg">
+  <div class="modal">
+    <h3 id="modalBase64Title"></h3>
+    <textarea id="modalBase64Textarea" readonly></textarea>
+    <div style="display:flex; gap:8px; justify-content:end; margin-top:10px;">
+      <button id="modalBase64Close" class="btn secondary">Close</button>
+      <button id="modalBase64Copy" class="btn">Copy</button>
+    </div>
+  </div>
+</div>
+
+<!-- Compare Modal -->
+<div id="modalCompare" class="modal-bg">
+  <div class="modal">
+    <h3 id="modalCompareTitle"></h3>
+
+    <div id="compareFrame" class="compare-frame">
+      <div class="img-wrap bottom"><img id="compareOriginal"></div>
+      <div class="img-wrap top"><img id="compareCompressed"></div>
+    </div>
+
+    <div style="display:flex; justify-content:space-between; margin-top:6px; font-size:13px;">
+      <div>Hover to fade between Original → Compressed</div>
+      <button id="compareToggle" class="btn secondary" style="padding:6px 10px;">Toggle</button>
+    </div>
+
+    <div style="display:flex; justify-content:end; margin-top:12px;">
+      <button id="modalCompareClose" class="btn secondary">Close</button>
+    </div>
+  </div>
+</div>
+
+</div> <!-- end .app -->
 
 <script>
-/*
-  Multi-image compressor (gallery mode)
-  - preserves original filename (download as originalname.jpg)
-  - per-image and total progress
-  - compress individually or compress all
-*/
-
-const dropZone = document.getElementById('dropZone');
-const fileInput = document.getElementById('fileInput');
-const gallery = document.getElementById('gallery');
-const compressAllBtn = document.getElementById('compressAllBtn');
-const clearBtn = document.getElementById('clearBtn');
-const totalProgress = document.getElementById('totalProgress');
-const totalLabel = document.getElementById('totalLabel');
-
-const qualityInput = document.getElementById('quality');
-const maxWidthInput = document.getElementById('maxWidth');
-const maxHeightInput = document.getElementById('maxHeight');
-
-const modalBg = document.getElementById('modalBg');
-const modalTextarea = document.getElementById('modalTextarea');
-const modalTitle = document.getElementById('modalTitle');
-const modalClose = document.getElementById('modalClose');
-const modalCopy = document.getElementById('modalCopy');
-
-let items = []; // { id, file, name, preview, beforeKB, compressed, afterKB, status, progress }
-let compressingCount = 0;
-
-function humanKB(bytes) {
-  return (bytes/1024).toFixed(2) + ' KB';
+/* =====================
+   HELPERS
+===================== */
+function formatSize(b){
+  if(b<1024) return b+" B";
+  if(b<1024*1024) return (b/1024).toFixed(2)+" KB";
+  return (b/1024/1024).toFixed(2)+" MB";
+}
+function percentSaved(a,b){
+  if(!a||!b) return "—";
+  return (((a-b)/a)*100).toFixed(1)+"%";
 }
 
-function setTotalProgress(done, total) {
-  const percent = total === 0 ? 0 : Math.round((done/total) * 100);
-  totalProgress.style.width = percent + '%';
-  totalLabel.textContent = `${done} / ${total}`;
-}
+/* =====================
+   STATE
+===================== */
+let items = []; 
+const dropZone = document.getElementById("dropZone");
+const fileInput = document.getElementById("fileInput");
+const gallery = document.getElementById("gallery");
 
-function createCard(item) {
-  const card = document.createElement('div');
-  card.className = 'card';
-  card.id = 'card-' + item.id;
+const qualityInput = document.getElementById("quality");
+const maxWidthInput = document.getElementById("maxWidth");
+const maxHeightInput = document.getElementById("maxHeight");
 
-  const thumb = document.createElement('div');
-  thumb.className = 'thumb';
-  const img = document.createElement('img');
-  img.src = item.preview;
-  thumb.appendChild(img);
+/* Modal refs */
+const modalBase64 = document.getElementById("modalBase64");
+const modalBase64Title = document.getElementById("modalBase64Title");
+const modalBase64Textarea = document.getElementById("modalBase64Textarea");
+const modalBase64Close = document.getElementById("modalBase64Close");
+const modalBase64Copy = document.getElementById("modalBase64Copy");
 
-  const meta = document.createElement('div');
-  meta.className = 'meta';
-  const nameSpan = document.createElement('div'); nameSpan.className='name'; nameSpan.textContent = item.name;
-  const sizeSpan = document.createElement('div'); sizeSpan.className='size'; sizeSpan.textContent = item.beforeKB;
-  meta.appendChild(nameSpan); meta.appendChild(sizeSpan);
+const modalCompare = document.getElementById("modalCompare");
+const modalCompareTitle = document.getElementById("modalCompareTitle");
+const compareFrame = document.getElementById("compareFrame");
+const compareOriginal = document.getElementById("compareOriginal");
+const compareCompressed = document.getElementById("compareCompressed");
+const compareToggle = document.getElementById("compareToggle");
+const modalCompareClose = document.getElementById("modalCompareClose");
 
-  const progressBg = document.createElement('div'); progressBg.className='progress-bg';
-  const progressBar = document.createElement('div'); progressBar.className='progress-bar';
-  progressBar.style.width = (item.progress || 0) + '%';
-  progressBar.id = 'p-' + item.id;
-  progressBg.appendChild(progressBar);
+let compareVisible = false;
 
-  const afterText = document.createElement('div'); afterText.style.fontSize='13px'; afterText.style.color='#666';
-  afterText.id = 'after-' + item.id;
-  afterText.textContent = item.afterKB ? ('After: ' + item.afterKB) : 'After: —';
-
-  const actions = document.createElement('div'); actions.className='card-actions';
-  // compress button
-  const btnCompress = document.createElement('button');
-  btnCompress.className = 'small btn';
-  btnCompress.textContent = 'Compress';
-  btnCompress.onclick = () => compressSingle(item.id);
-
-  // download button
-  const btnDownload = document.createElement('button');
-  btnDownload.className = 'small btn secondary';
-  btnDownload.textContent = 'Download';
-  btnDownload.onclick = () => downloadCompressed(item.id);
-
-  // show base64 button
-  const btnShow = document.createElement('button');
-  btnShow.className = 'small btn secondary';
-  btnShow.textContent = 'Show Base64';
-  btnShow.onclick = () => openModalFor(item.id);
-
-  actions.appendChild(btnCompress);
-  actions.appendChild(btnDownload);
-  actions.appendChild(btnShow);
-
-  card.appendChild(thumb);
-  card.appendChild(meta);
-  card.appendChild(progressBg);
-  card.appendChild(afterText);
-  card.appendChild(actions);
-
-  return card;
-}
-
-function renderGallery() {
-  gallery.innerHTML = '';
-  items.forEach(it => {
-    gallery.appendChild(createCard(it));
-  });
-  setTotalProgress(items.filter(i=>i.compressed).length, items.length);
-}
-
-function resetApp() {
-  items = [];
-  gallery.innerHTML = '';
-  setTotalProgress(0,0);
-}
-
-// handle file list (multiple)
-function handleFiles(fileList) {
-  const files = Array.from(fileList);
-  const startIndex = items.length;
-  const readPromises = files.map((file, idx) => {
-    const id = Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,8) + '-' + (startIndex + idx);
-    return new Promise((res) => {
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        const preview = e.target.result;
-        const beforeKB = humanKB(file.size);
-        // original filename without extension
-        const base = file.name.split('.').slice(0, -1).join('.') || file.name;
-        const item = {
-          id, file, name: base, preview, beforeKB, compressed: null, afterKB: null, status: 'idle', progress: 0
-        };
-        items.push(item);
-        res(item);
-      };
-      reader.readAsDataURL(file);
-    });
-  });
-
-  Promise.all(readPromises).then(() => {
-    renderGallery();
-  });
-}
-
-/* Drag & drop wiring */
-dropZone.addEventListener('click', () => fileInput.click());
-dropZone.addEventListener('dragover', (e) => { e.preventDefault(); dropZone.classList.add('dragover'); });
-dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
-dropZone.addEventListener('drop', (e) => {
-  e.preventDefault(); dropZone.classList.remove('dragover');
-  if (e.dataTransfer.files && e.dataTransfer.files.length) {
-    handleFiles(e.dataTransfer.files);
-  }
+/* =====================
+   FILE HANDLING
+===================== */
+dropZone.onclick = ()=> fileInput.click();
+dropZone.addEventListener("dragover", e=>{ e.preventDefault(); dropZone.classList.add("dragover"); });
+dropZone.addEventListener("dragleave", ()=> dropZone.classList.remove("dragover"));
+dropZone.addEventListener("drop", e=>{
+  e.preventDefault();
+  dropZone.classList.remove("dragover");
+  handleFiles(e.dataTransfer.files);
 });
+fileInput.addEventListener("change", e=> handleFiles(e.target.files));
 
-fileInput.addEventListener('change', (e) => {
-  if (e.target.files && e.target.files.length) handleFiles(e.target.files);
-});
-
-/* Compression function using canvas */
-function compressDataURL(dataUrl, quality, maxW, maxH) {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => {
-      let w = img.width, h = img.height;
-      if (w > maxW || h > maxH) {
-        if (w > h) { h = Math.round(h * (maxW / w)); w = maxW; }
-        else { w = Math.round(w * (maxH / h)); h = maxH; }
-      }
-      const canvas = document.createElement('canvas');
-      canvas.width = w; canvas.height = h;
-      const ctx = canvas.getContext('2d');
-      ctx.drawImage(img, 0, 0, w, h);
-      // compress to jpeg
-      const outData = canvas.toDataURL('image/jpeg', quality);
-      resolve(outData);
+function handleFiles(list){
+  [...list].forEach(file=>{
+    const reader=new FileReader();
+    reader.onload=e=>{
+      const id=Math.random().toString(36).slice(2);
+      items.push({
+        id,
+        file,
+        name:file.name.replace(/\.[^.]+$/, ""),
+        preview:e.target.result,
+        beforeBytes:file.size,
+        compressed:null,
+        afterBytes:null,
+        progress:0
+      });
+      render();
     };
-    img.onerror = (err) => reject(err);
-    img.src = dataUrl;
+    reader.readAsDataURL(file);
   });
 }
 
-/* utility: update UI progress for a single item */
-function setItemProgress(id, pct) {
-  const bar = document.getElementById('p-' + id);
-  if (bar) bar.style.width = pct + '%';
-  const item = items.find(i=>i.id===id);
-  if (item) item.progress = pct;
+/* =====================
+   RENDER
+===================== */
+function render(){
+  gallery.innerHTML = items.map(it=>`
+    <div class="card">
+      <div class="thumb"><img src="${it.preview}"></div>
+
+      <div class="meta">
+        <div class="name">${it.name}</div>
+        <div class="size">${formatSize(it.beforeBytes)}</div>
+      </div>
+
+      <div class="progress-bg">
+        <div id="p-${it.id}" class="progress-bar" style="width:${it.progress}%"></div>
+      </div>
+
+      <div id="stats-${it.id}" style="font-size:13px;">
+        <div>Before: ${formatSize(it.beforeBytes)}</div>
+        <div>After: ${it.afterBytes ? formatSize(it.afterBytes) : "—"}</div>
+        <div>Saved: ${it.afterBytes ? percentSaved(it.beforeBytes,it.afterBytes) : "—"}</div>
+      </div>
+
+      <div class="card-actions">
+        <button class="small btn" onclick="compressOne('${it.id}')">Compress</button>
+        <button class="small btn secondary" onclick="downloadOne('${it.id}')">Download</button>
+        <button class="small btn secondary" onclick="openBase64('${it.id}')">Base64</button>
+        <button class="small btn secondary" onclick="openCompare('${it.id}')">Compare</button>
+      </div>
+    </div>
+  `).join("");
+}
+/* =====================
+   COMPRESSION
+===================== */
+function updateProgress(id,p){
+  const bar=document.getElementById("p-"+id);
+  if(bar) bar.style.width=p+"%";
 }
 
-/* compress a single item by id */
-async function compressSingle(id) {
-  const item = items.find(i=>i.id===id);
-  if (!item) return;
-  if (item.status === 'compressing') return;
-  item.status = 'compressing';
-  // show fake progress to 70%
-  let p = 0;
-  setItemProgress(id, 2);
-  const fake = setInterval(() => {
-    if (p < 70) { p += Math.random()*8; if (p>70) p=70; setItemProgress(id, Math.round(p)); }
-  }, 160);
+function compressDataURL(dataUrl,q,maxW,maxH){
+  return new Promise((res,rej)=>{
+    const img=new Image();
+    img.onload=()=>{
+      let w=img.width, h=img.height;
 
-  try {
-    // we have item.preview (dataURL)
-    const q = parseFloat(qualityInput.value) || 0.7;
-    const maxW = parseInt(maxWidthInput.value) || 1200;
-    const maxH = parseInt(maxHeightInput.value) || 1200;
-    const out = await compressDataURL(item.preview, q, maxW, maxH);
+      if(w>maxW || h>maxH){
+        if(w>h){ h=Math.round(h*(maxW/w)); w=maxW; }
+        else   { w=Math.round(w*(maxH/h)); h=maxH; }
+      }
 
-    clearInterval(fake);
-    setItemProgress(id, 95);
-    // allow tiny delay then finalize
-    await new Promise(r => setTimeout(r, 220));
-    item.compressed = out;
-    item.afterKB = humanKB(Math.round((out.length * 0.75))); // rough estimate
-    item.status = 'done';
-    setItemProgress(id, 100);
+      const c=document.createElement("canvas");
+      c.width=w; c.height=h;
+      c.getContext("2d").drawImage(img,0,0,w,h);
 
-    // update UI elements
-    const afterEl = document.getElementById('after-' + id);
-    if (afterEl) afterEl.textContent = 'After: ' + item.afterKB;
+      res(c.toDataURL("image/jpeg",q));
+    };
+    img.onerror=rej;
+    img.src=dataUrl;
+  });
+}
 
-    // update total progress
-    setTotalProgress(items.filter(i=>i.compressed).length, items.length);
-  } catch (err) {
-    clearInterval(fake);
-    item.status = 'error';
-    setItemProgress(id, 0);
-    console.error('compress error', err);
-    alert('Failed to compress ' + item.name);
+async function compressOne(id){
+  const it=items.find(x=>x.id===id);
+  if(!it) return;
+  
+  let prog=0;
+  const fake=setInterval(()=>{
+    prog=Math.min(70,prog+Math.random()*10);
+    updateProgress(id,prog);
+  },120);
+
+  const q=parseFloat(qualityInput.value)||0.7;
+  const maxW=parseInt(maxWidthInput.value)||1200;
+  const maxH=parseInt(maxHeightInput.value)||1200;
+
+  const out=await compressDataURL(it.preview,q,maxW,maxH);
+
+  clearInterval(fake);
+  updateProgress(id,100);
+
+  it.compressed=out;
+  it.afterBytes=Math.round(out.length*0.75);
+
+  document.getElementById("stats-"+id).innerHTML=`
+    <div>Before: ${formatSize(it.beforeBytes)}</div>
+    <div>After: ${formatSize(it.afterBytes)}</div>
+    <div>Saved: ${percentSaved(it.beforeBytes,it.afterBytes)}</div>
+  `;
+}
+
+async function compressAll(){
+  for(const it of items){
+    if(!it.afterBytes) await compressOne(it.id);
   }
 }
 
-/* Compress all items in sequence (to avoid huge memory spike) */
-async function compressAll() {
-  if (!items.length) return alert('No images selected');
-  // compress only items not yet compressed
-  const toProcess = items.filter(i => !i.compressed);
-  if (!toProcess.length) return alert('All images already compressed');
+/* =====================
+   DOWNLOAD SINGLE
+===================== */
+function downloadOne(id){
+  const it=items.find(x=>x.id===id);
+  if(!it || !it.compressed) return alert("Compress first");
 
-  compressAllBtn.disabled = true;
-  clearBtn.disabled = true;
+  const a=document.createElement("a");
+  a.href=it.compressed;
+  a.download=it.name+"_compressed.jpg";
+  a.click();
+}
 
-  let done = items.filter(i=>i.compressed).length;
-  setTotalProgress(done, items.length);
+/* =====================
+   ZIP ALL COMPRESSED
+===================== */
+async function zipAll(){
+  const list=items.filter(i=>i.compressed);
+  if(!list.length) return alert("No compressed images");
 
-  for (let i=0;i<toProcess.length;i++) {
-    const it = toProcess[i];
-    await compressSingle(it.id);
-    done++;
-    setTotalProgress(done, items.length);
+  const zip=new JSZip();
+
+  for(const it of list){
+    const blob=await fetch(it.compressed).then(r=>r.blob());
+    zip.file(it.name+"_compressed.jpg", blob);
   }
 
-  compressAllBtn.disabled = false;
-  clearBtn.disabled = false;
+  const output=await zip.generateAsync({type:"blob"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(output);
+  a.download="compressed_images.zip";
+  a.click();
 }
 
-/* Download compressed (use original filename + .jpg) */
-function downloadCompressed(id) {
-  const item = items.find(i=>i.id===id);
-  if (!item) return alert('File not ready');
-  if (!item.compressed) return alert('Compress this image first');
-
-  const link = document.createElement('a');
-  const outName = (item.name || 'compressed') + '.jpg';
-  link.href = item.compressed;
-  link.download = outName;
-  link.click();
+/* =====================
+   BASE64 MODAL
+===================== */
+function openBase64(id){
+  const it=items.find(x=>x.id===id);
+  if(!it || !it.compressed) return alert("Compress first");
+  modalBase64Title.textContent=it.name;
+  modalBase64Textarea.value=it.compressed;
+  modalBase64.style.display="flex";
 }
-
-/* open modal to show base64 (per-image) */
-function openModalFor(id) {
-  const item = items.find(i=>i.id===id);
-  if (!item) return;
-  if (!item.compressed) return alert('Compress first to view Base64');
-  modalTitle.textContent = 'Base64 — ' + (item.name || 'image');
-  modalTextarea.value = item.compressed;
-  modalBg.style.display = 'flex';
-}
-
-/* copy modal content */
-modalCopy.onclick = () => {
-  modalTextarea.select();
-  document.execCommand('copy');
-  modalCopy.textContent = 'Copied!';
-  setTimeout(()=> modalCopy.textContent = 'Copy', 900);
+modalBase64Close.onclick=()=> modalBase64.style.display="none";
+modalBase64Copy.onclick=()=>{
+  navigator.clipboard.writeText(modalBase64Textarea.value);
+  modalBase64Copy.textContent="Copied!";
+  setTimeout(()=>modalBase64Copy.textContent="Copy",900);
 };
-modalClose.onclick = () => { modalBg.style.display = 'none'; };
 
-/* wire top buttons */
-compressAllBtn.addEventListener('click', compressAll);
-clearBtn.addEventListener('click', () => {
-  if (!confirm('Clear all selected images?')) return;
-  items = [];
-  renderGallery();
-  setTotalProgress(0,0);
-});
+/* =====================
+   COMPARE MODAL
+===================== */
+function openCompare(id){
+  const it=items.find(x=>x.id===id);
+  if(!it || !it.compressed) return alert("Compress first");
 
-/* render helper - rebuild gallery when items change */
-function renderGallery() {
-  gallery.innerHTML = '';
-  items.forEach(it => {
-    const card = createCardFor(it);
-    gallery.appendChild(card);
-  });
-  setTotalProgress(items.filter(i=>i.compressed).length, items.length);
+  modalCompareTitle.textContent=it.name;
+  compareOriginal.src=it.preview;
+  compareCompressed.src=it.compressed;
+
+  compareFrame.classList.remove("hover");
+  compareVisible=false;
+
+  modalCompare.style.display="flex";
 }
 
-/* createCardFor uses same structure but ensures buttons reference live item */
-function createCardFor(item) {
-  const card = document.createElement('div');
-  card.className = 'card';
-  card.id = 'card-' + item.id;
+modalCompareClose.onclick=()=> modalCompare.style.display="none";
 
-  const thumb = document.createElement('div');
-  thumb.className = 'thumb';
-  const image = document.createElement('img');
-  image.src = item.preview;
-  thumb.appendChild(image);
+compareFrame.addEventListener("mouseenter",()=>compareFrame.classList.add("hover"));
+compareFrame.addEventListener("mouseleave",()=>compareFrame.classList.remove("hover"));
 
-  const meta = document.createElement('div');
-  meta.className = 'meta';
-  const nameSpan = document.createElement('div'); nameSpan.className='name'; nameSpan.textContent = item.name;
-  const sizeSpan = document.createElement('div'); sizeSpan.className='size'; sizeSpan.textContent = item.beforeKB;
-  meta.appendChild(nameSpan); meta.appendChild(sizeSpan);
+compareToggle.onclick=()=>{
+  compareVisible=!compareVisible;
+  if(compareVisible) compareFrame.classList.add("hover");
+  else compareFrame.classList.remove("hover");
+};
 
-  const progressBg = document.createElement('div'); progressBg.className='progress-bg';
-  const progressBar = document.createElement('div'); progressBar.className='progress-bar';
-  progressBar.style.width = (item.progress || 0) + '%';
-  progressBar.id = 'p-' + item.id;
-  progressBg.appendChild(progressBar);
-
-  const afterText = document.createElement('div'); afterText.style.fontSize='13px'; afterText.style.color='#666';
-  afterText.id = 'after-' + item.id;
-  afterText.textContent = item.afterKB ? ('After: ' + item.afterKB) : 'After: —';
-
-  const actions = document.createElement('div'); actions.className='card-actions';
-  const btnCompress = document.createElement('button'); btnCompress.className = 'small btn'; btnCompress.textContent = 'Compress';
-  btnCompress.onclick = () => compressSingle(item.id);
-
-  const btnDownload = document.createElement('button'); btnDownload.className='small btn secondary'; btnDownload.textContent='Download';
-  btnDownload.onclick = () => downloadCompressed(item.id);
-
-  const btnShow = document.createElement('button'); btnShow.className='small btn secondary'; btnShow.textContent='Show Base64';
-  btnShow.onclick = () => openModalFor(item.id);
-
-  actions.appendChild(btnCompress);
-  actions.appendChild(btnDownload);
-  actions.appendChild(btnShow);
-
-  card.appendChild(thumb);
-  card.appendChild(meta);
-  card.appendChild(progressBg);
-  card.appendChild(afterText);
-  card.appendChild(actions);
-
-  return card;
-}
-
-/* Small helper to update UI progress bar when setItemProgress invoked externally */
-function setItemProgress(id, pct) {
-  const bar = document.getElementById('p-' + id);
-  if (bar) bar.style.width = pct + '%';
-  const it = items.find(x=>x.id===id);
-  if (it) it.progress = pct;
-}
-
-/* initial total state */
-setTotalProgress(0,0);
+/* =====================
+   BUTTONS
+===================== */
+document.getElementById("compressAllBtn").onclick=compressAll;
+document.getElementById("zipAllBtn").onclick=zipAll;
+document.getElementById("clearBtn").onclick=()=>{
+  if(confirm("Clear all?")){
+    items=[];
+    gallery.innerHTML="";
+  }
+};
 </script>
+
 </body>
 </html>
+
