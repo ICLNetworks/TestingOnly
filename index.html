@@ -45,12 +45,12 @@
         border: 1px solid #ccc;
     }
 
-    .btn { 
-        padding: 10px 18px; 
-        background: #4CAF50; 
-        color: #fff; 
-        border: none; 
-        border-radius: 6px; 
+    .btn {
+        padding: 10px 18px;
+        background: #4CAF50;
+        color: #fff;
+        border: none;
+        border-radius: 6px;
         cursor: pointer;
         font-size: 15px;
     }
@@ -59,17 +59,25 @@
         background: #555;
     }
 
-    .btn.small { padding: 6px 10px; font-size: 13px; }
-    .btn.blue { background: #0b79d0; }
+    .btn.small {
+        padding: 6px 10px;
+        font-size: 13px;
+    }
 
+    .btn.blue {
+        background: #0b79d0;
+    }
+
+    /* MODAL */
     .modal {
         position: fixed;
         inset: 0;
-        background: rgba(0,0,0,0.85);
+        background: rgba(0,0,0,0.88);
         display: none;
         align-items: center;
         justify-content: center;
         padding: 30px;
+        z-index: 2000;
     }
 
     .modal-content {
@@ -77,56 +85,56 @@
         background: #000;
         padding: 20px;
         border-radius: 8px;
-        max-width: 90%;
+        max-width: 95%;
     }
 
-    /* Compare Buttons Top Right */
+    /* Compare Buttons Top-Right */
     .compare-buttons {
         position: absolute;
         top: 10px;
         right: 10px;
         display: flex;
         gap: 8px;
-        z-index: 20;
+        z-index: 30;
     }
 
+    /* FIXED Compare Area */
     .compare-img-container {
         position: relative;
-        max-width: 900px;
-        max-height: 600px;
+        width: 900px;
+        height: 500px;
+        background: #111;
         overflow: hidden;
+        border-radius: 8px;
+    }
+
+    .compare-img-container img {
+        width: 100%;
+        height: 100%;
+        object-fit: contain;
     }
 
     /* Hover Fade Mode */
     #hoverContainer img {
         position: absolute;
         top: 0; left: 0;
-        width: 100%;
         transition: opacity 0.3s ease;
     }
-
     #hoverContainer .top:hover {
         opacity: 0;
     }
 
-    /* Side-by-Side */
+    /* Side-by-Side Mode */
     #sideBySideContainer {
         display: none;
-        display: grid;
+        height: 100%;
+        width: 100%;
         grid-template-columns: 1fr 1fr;
         gap: 10px;
-        width: 100%;
     }
-
-    #sideBySideContainer img {
-        width: 100%;
-        border-radius: 5px;
-    }
-
 </style>
 
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
-
 </head>
 <body>
 
@@ -160,13 +168,13 @@
 
         <div class="compare-img-container">
 
-            <!-- Hover Fade Mode -->
+            <!-- Hover Fade -->
             <div id="hoverContainer">
                 <img id="compareOriginal" class="bottom">
                 <img id="compareCompressed" class="top">
             </div>
 
-            <!-- Side-by-Side Mode -->
+            <!-- Side-by-side -->
             <div id="sideBySideContainer">
                 <img id="sideOriginal">
                 <img id="sideCompressed">
@@ -185,9 +193,9 @@ let items = [];
 
 function $(id){ return document.getElementById(id); }
 
-/* ==========================
+/* ======================
    DRAG & DROP
-   ========================== */
+====================== */
 const dz = $("dropZone");
 dz.onclick = () => $("fileInput").click();
 
@@ -206,9 +214,9 @@ function handleFiles(files){
     [...files].forEach(file => addItem(file));
 }
 
-/* ==========================
-   ADD ITEM UI
-   ========================== */
+/* ======================
+   ADD ITEM
+====================== */
 function addItem(file){
     const reader = new FileReader();
     reader.onload = e => {
@@ -245,9 +253,9 @@ function render(){
     });
 }
 
-/* ==========================
-   IMAGE COMPRESS
-   ========================== */
+/* ======================
+   COMPRESS ONE
+====================== */
 function compressOne(index){
     const it = items[index];
 
@@ -265,8 +273,7 @@ function compressOne(index){
         const compressed = canvas.toDataURL("image/jpeg", 0.6);
         it.compressed = compressed;
 
-        // compute size
-        it.compressedSize = Math.round((compressed.length*3/4));
+        it.compressedSize = Math.round((compressed.length * 3 / 4));
 
         render();
     };
@@ -276,9 +283,9 @@ $("compressAllBtn").onclick = () => {
     items.forEach((_,i)=>compressOne(i));
 };
 
-/* ==========================
+/* ======================
    COMPARE MODAL
-   ========================== */
+====================== */
 function showCompare(i){
     const it = items[i];
 
@@ -288,7 +295,7 @@ function showCompare(i){
     $("sideOriginal").src = it.preview;
     $("sideCompressed").src = it.compressed;
 
-    // default = hover mode
+    // default mode
     showHover();
 
     $("compareModal").style.display = "flex";
@@ -318,14 +325,13 @@ function showSide(){
 $("btnHover").onclick = showHover;
 $("btnSide").onclick = showSide;
 
-/* ==========================
+/* ======================
    ZIP ALL
-   ========================== */
-$("zipAllBtn").onclick = async ()=>{
+====================== */
+$("zipAllBtn").onclick = async () => {
+    const compressedItems = items.filter(it => it.compressed);
 
-    const compressedItems = items.filter(it=>it.compressed);
-
-    if(compressedItems.length===0){
+    if(compressedItems.length === 0){
         alert("Compress images first machi!");
         return;
     }
@@ -344,14 +350,13 @@ $("zipAllBtn").onclick = async ()=>{
     a.click();
 };
 
-/* ==========================
+/* ======================
    CLEAR
-   ========================== */
-$("clearBtn").onclick = ()=>{
+====================== */
+$("clearBtn").onclick = () => {
     items = [];
     render();
 };
-
 </script>
 
 </body>
