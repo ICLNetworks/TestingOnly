@@ -1,74 +1,138 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<title>Image Compressor</title>
 <meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Image Compressor</title>
+
 <!-- JSZip CDN -->
 <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
+
 <style>
-  :root{ --accent:#2563eb; --ok:#16a34a; --danger:#ef4444; --card:#fff; --muted:#6b7280; }
-  body{ font-family:Inter,ui-sans-serif,system-ui,Segoe UI,Roboto,Arial; background:#f3f4f6; margin:0; padding:20px; color:#111827; }
-  .container{ max-width:1100px; margin:0 auto; background:var(--card); border-radius:12px; padding:20px; box-shadow:0 8px 30px rgba(2,6,23,0.08); }
+  :root{
+    --blue:#2f80d0;
+    --accent:#2563eb;
+    --muted:#6b7280;
+    --danger:#ef4444;
+    --card:#ffffff;
+  }
 
-  header{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
-  h1{ font-size:20px; margin:0; }
+  body{
+    margin:0;
+    font-family:Inter,system-ui,Segoe UI,Roboto,Arial;
+    background:#f3f4f6;
+    color:#0f172a;
+    padding:20px;
+  }
 
-  /* static error bar */
-  #errorBar { display:none; background:var(--danger); color:white; padding:10px 14px; border-radius:8px; margin-bottom:12px; position:relative; }
-  #errorBar .close { position:absolute; right:8px; top:6px; cursor:pointer; opacity:.9; }
+  .container{
+    max-width:1100px;
+    margin:0 auto;
+    background:var(--card);
+    border-radius:8px;
+    border:1px solid #e6e9ef;
+    box-shadow:0 8px 30px rgba(2,6,23,0.06);
+    overflow:hidden;
+  }
 
-  .controls { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
-  .control-row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+  /* Blue-box header */
+  .blue-box-header{
+    background-color:var(--blue);
+    color:#fff;
+    padding:12px 18px;
+    font-weight:700;
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+  }
 
-  label.small{ font-size:13px; color:var(--muted); margin-right:6px; }
-  input[type="number"], input[type="text"]{ padding:8px 10px; border-radius:8px; border:1px solid #e6e9ef; width:120px; }
-  input[type="number"].small{ width:86px; }
-  input[type="range"]{ width:160px; }
+  .blue-box-body{
+    padding:18px;
+    background:#fff;
+  }
+
+  header .subtitle{ color:#eaf2ff; font-weight:500; }
+
+  /* error bar */
+  #errorBar{
+    display:none;
+    background:var(--danger);
+    color:white;
+    padding:10px 12px;
+    border-radius:6px;
+    margin-bottom:12px;
+    position:relative;
+  }
+  #errorBar .closeBtn{
+    position:absolute;
+    right:8px;
+    top:6px;
+    cursor:pointer;
+    font-weight:700;
+  }
+
+  /* controls */
+  .controls{ display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-bottom:12px; }
+  .controls label{ font-size:13px; color:var(--muted); margin-right:6px; }
+  .controls input[type="number"]{ width:110px; padding:8px; border-radius:8px; border:1px solid #e6e9ef; }
+  .controls input[type="range"]{ width:160px; }
 
   /* drop zone */
-  #dropZone { border:2px dashed #c7d2fe; border-radius:10px; padding:22px; text-align:center; cursor:pointer; background:linear-gradient(180deg, rgba(99,102,241,0.03), transparent); color:var(--accent); }
-  #dropZone.dragover { background:#eef2ff; border-color:#7c3aed; }
+  #dropZone{
+    border:2px dashed #c7d2fe;
+    border-radius:8px;
+    padding:28px;
+    text-align:center;
+    cursor:pointer;
+    color:var(--accent);
+    background:linear-gradient(180deg, rgba(99,102,241,0.03), transparent);
+  }
+  #dropZone.dragover{ background:#eef2ff; border-color:#7c3aed; }
 
-  .action-buttons { display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; }
+  /* action area (Layout C) */
+  .actions-after-drop{ margin-top:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
 
-  button.btn { background:var(--accent); color:white; border:none; padding:10px 14px; border-radius:8px; cursor:pointer; font-weight:600; }
-  button.btn.secondary { background:#eef2ff; color:#1e293b; border:1px solid #e0e7ff; }
-  button.btn.ghost { background:transparent; color:var(--accent); border:1px solid #e6eefc; }
+  button.btn{
+    background:var(--accent); color:#fff; border:none; padding:10px 14px; border-radius:8px; cursor:pointer; font-weight:600;
+  }
+  button.btn.secondary{ background:#eef2ff; color:#1e293b; border:1px solid #e0e7ff; }
+  button.btn.ghost{ background:transparent; color:var(--accent); border:1px solid #e6eefc; }
 
-  /* previews */
-  .gallery { margin-top:16px; display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:14px; }
-  .card { background:var(--card); border:1px solid #eef2ff; padding:12px; border-radius:10px; display:flex; flex-direction:column; gap:8px; min-height:220px; }
-  .thumb { height:120px; border-radius:8px; overflow:hidden; display:flex; align-items:center; justify-content:center; background:#f8fafc; }
+  /* gallery */
+  .gallery{ margin-top:16px; display:grid; gap:14px; grid-template-columns:repeat(auto-fill, minmax(220px,1fr)); padding-bottom:20px; }
+  .card{ background:var(--card); border-radius:10px; border:1px solid #eef2ff; padding:12px; display:flex; flex-direction:column; gap:8px; min-height:230px; }
+  .thumb{ height:120px; border-radius:8px; overflow:hidden; background:#f8fafc; display:flex; align-items:center; justify-content:center; }
   .thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
 
-  .meta { display:flex; justify-content:space-between; align-items:center; gap:8px; font-size:13px; color:#0f172a; }
-  .meta .name { font-weight:600; overflow:hidden; white-space:nowrap; text-overflow:ellipsis; max-width:65%; }
-  .meta .size { color:var(--muted); font-size:12px; }
+  .meta{ display:flex; justify-content:space-between; align-items:center; gap:8px; }
+  .meta .name{ font-weight:600; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; max-width:65%; }
+  .meta .size{ font-size:13px; color:var(--muted); }
 
-  .stats { font-size:13px; color:var(--muted); line-height:1.2; }
-  .progress { height:8px; background:#eef2ff; border-radius:8px; overflow:hidden; margin-top:6px; }
-  .progress > i { display:block; height:100%; width:0%; background:var(--accent); transition:width .25s linear; }
+  .stats{ font-size:13px; color:var(--muted); }
+  .progress{ height:8px; background:#eef2ff; border-radius:8px; overflow:hidden; margin-top:6px; }
+  .progress > i{ display:block; height:100%; width:0%; background:var(--accent); transition:width .22s linear; }
 
-  .card-actions { display:flex; gap:8px; margin-top:auto; flex-wrap:wrap; }
-  .small { padding:8px 10px; font-size:13px; border-radius:8px; cursor:pointer; border:1px solid transparent; }
+  .card-actions{ display:flex; gap:8px; margin-top:auto; flex-wrap:wrap; }
 
-  /* modal base */
-  .modal-bg { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.6); align-items:center; justify-content:center; z-index:9999; padding:20px; }
-  .modal { width:100%; max-width:920px; background:white; border-radius:10px; padding:14px; max-height:90vh; overflow:auto; }
+  .muted{ color:var(--muted); font-size:13px; }
 
-  .compare-pair { margin-bottom:18px; }
+  /* modal */
+  .modal-bg{ display:none; position:fixed; inset:0; background:rgba(2,6,23,0.6); align-items:center; justify-content:center; z-index:9999; padding:20px; }
+  .modal{ width:100%; max-width:920px; background:#fff; border-radius:10px; padding:14px; max-height:90vh; overflow:auto; }
+
+  .compare-pair{ margin-bottom:18px; }
   .compare-pair h4{ margin:6px 0 8px 0; font-size:14px; color:#0f172a; }
-  .compare-img { width:100%; max-height:360px; object-fit:contain; border-radius:8px; border:1px solid #e6eefc; background:#f8fafc; display:block; }
+  .compare-img{ width:100%; max-height:360px; object-fit:contain; border-radius:8px; border:1px solid #e6eefc; background:#fafafa; display:block; }
 
-  .modal-footer { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-top:10px; flex-wrap:wrap; }
+  .modal-footer{ display:flex; justify-content:space-between; align-items:center; margin-top:8px; flex-wrap:wrap; gap:8px; }
 
-  .muted { color:var(--muted); font-size:13px; }
+  .carousel-controls{ display:flex; gap:8px; align-items:center; }
 
   @media (max-width:640px){
-    .gallery{ grid-template-columns:repeat(auto-fill,minmax(160px,1fr)); }
+    .gallery{ grid-template-columns:repeat(auto-fill, minmax(160px,1fr)); }
     .thumb{ height:100px; }
     .compare-img{ max-height:260px; }
+    .controls input[type="number"]{ width:90px; }
   }
 </style>
 </head>
@@ -76,98 +140,99 @@
 
 <div class="container">
 
-  <!-- ERROR BAR (static, auto-hide or close) -->
-  <div id="errorBar"><span id="errorMsg"></span><span class="close" onclick="hideError()">✕</span></div>
+  <div class="blue-box-header">
+    <div>Advanced Image Compressor</div>
+    <div style="font-size:14px; color:rgba(255,255,255,0.95)">Upload ▸ Compress ▸ Download</div>
+  </div>
 
-  <header>
-    <h1>Image Compressor</h1>
-    <div class="muted">Upload images, resize, compress, compare and download ZIP</div>
-  </header>
+  <div class="blue-box-body">
 
-  <div class="controls">
+    <!-- ERROR BAR -->
+    <div id="errorBar"><span id="errorText"></span><span class="closeBtn" onclick="hideError()">✕</span></div>
 
-    <div class="control-row">
-      <label class="small">Width</label>
+    <!-- controls -->
+    <div class="controls">
+      <label>Width</label>
       <input id="width" type="number" value="800" />
-      <label class="small">Height</label>
+      <label>Height</label>
       <input id="height" type="number" value="800" />
-      <label class="small">Quality</label>
+      <label>Quality</label>
       <input id="quality" type="range" min="0.1" max="1" step="0.05" value="0.8" />
-      <span class="muted" id="qualityVal">0.80</span>
+      <div class="muted" id="qualityVal">0.80</div>
     </div>
 
-  </div>
-
-  <div id="dropZone" >
-    <div id="dropInner" style="padding:18px; text-align:center;">
-      <strong style="color:var(--accent)">Drag & drop images</strong><br>
-      or click to select files
-      <input id="fileInput" type="file" multiple accept="image/*" style="display:none" />
+    <!-- drop zone -->
+    <div id="dropZone"> 
+      <div id="dropInner" style="padding:12px;">
+        <strong style="color:var(--accent)">Drag & drop images here</strong><br>or click to select files
+        <input id="fileInput" type="file" accept="image/*" multiple style="display:none" />
+      </div>
     </div>
+
+    <!-- Layout C: Compress All under drop zone -->
+    <div class="actions-after-drop">
+      <button id="compressAllBtn" class="btn" style="display:none">Compress All</button>
+      <!-- Download + Compare will appear after compression (below) -->
+      <button id="downloadZipBtn" class="btn secondary" style="display:none">Download ZIP</button>
+      <button id="compareAllBtn" class="btn ghost" style="display:none">Compare All</button>
+    </div>
+
+    <!-- gallery -->
+    <div id="gallery" class="gallery"></div>
+
   </div>
-
-  <!-- action buttons under drop zone -->
-  <div style="margin-top:12px; display:flex; gap:10px; align-items:center; flex-wrap:wrap;">
-    <button id="compressAllBtn" class="btn" style="display:none">Compress All</button>
-    <button id="downloadZipBtn" class="btn secondary" style="display:none">Download ZIP</button>
-    <button id="compareAllBtn" class="btn ghost" style="display:none">Compare All</button>
-  </div>
-
-  <div id="gallery" class="gallery"></div>
-
 </div>
 
-<!-- Single Compare Modal (vertical) -->
-<div id="compareModal" class="modal-bg">
+<!-- Single compare modal (vertical) -->
+<div id="singleModal" class="modal-bg">
   <div class="modal" role="dialog" aria-modal="true">
-    <h3 id="cmpTitle">Compare</h3>
+    <h3 id="singleTitle">Compare</h3>
 
     <div class="compare-pair">
-      <h4 id="singleBeforeLabel">Before — size</h4>
-      <img id="singleBeforeImg" class="compare-img" src="" alt="Before">
+      <h4 id="sbeforeLabel">Before —</h4>
+      <img id="sbeforeImg" class="compare-img" src="" alt="Before">
     </div>
 
     <div class="compare-pair">
-      <h4 id="singleAfterLabel">After — size</h4>
-      <img id="singleAfterImg" class="compare-img" src="" alt="After">
+      <h4 id="safterLabel">After —</h4>
+      <img id="safterImg" class="compare-img" src="" alt="After">
     </div>
 
     <div class="modal-footer">
-      <div class="muted" id="singleInfo"></div>
-      <div style="margin-left:auto">
-        <button class="btn secondary small" onclick="closeSingleCompare()">Close</button>
+      <div class="muted" id="singleMeta"></div>
+      <div>
+        <button class="btn secondary" onclick="closeSingle()">Close</button>
       </div>
     </div>
   </div>
 </div>
 
-<!-- Compare All Modal (carousel vertical pairs) -->
-<div id="compareAllModal" class="modal-bg">
+<!-- Compare All modal (carousel vertical pairs) -->
+<div id="allModal" class="modal-bg">
   <div class="modal" role="dialog" aria-modal="true">
-    <div style="display:flex; align-items:center; gap:12px; margin-bottom:8px;">
-      <div class="muted" id="compareAllIndex">0 / 0</div>
-      <div style="margin-left:auto; display:flex; gap:8px;">
-        <button id="prevAll" class="btn secondary small">Prev</button>
-        <button id="nextAll" class="btn small">Next</button>
-        <button id="closeAll" class="btn secondary small">Close</button>
+    <div style="display:flex; align-items:center; justify-content:space-between; gap:12px;">
+      <div class="muted" id="allIndex">0 / 0</div>
+      <div class="carousel-controls">
+        <button id="prevBtn" class="btn secondary small">Prev</button>
+        <button id="nextBtn" class="btn small">Next</button>
+        <button id="closeAllBtn" class="btn secondary small">Close</button>
       </div>
     </div>
 
-    <div id="compareAllContent"></div>
+    <div id="allContent" style="margin-top:12px;"></div>
 
     <div style="margin-top:12px; display:flex; justify-content:space-between; align-items:center;">
-      <div class="muted" id="compareAllInfo"></div>
-      <div></div>
+      <div class="muted" id="allMeta"></div>
     </div>
-
   </div>
 </div>
 
 <script>
-/* ============================
+/* =========================
    State
-   ============================ */
-const items = []; // { file, name, preview (dataURL), beforeBytes, compressed (dataURL), afterBytes, progress }
+   ========================= */
+const items = []; // { file, name, preview, beforeBytes, compressed, afterBytes, progress }
+const jsZip = new JSZip();
 
 const fileInput = document.getElementById('fileInput');
 const dropZone = document.getElementById('dropZone');
@@ -183,73 +248,69 @@ const downloadZipBtn = document.getElementById('downloadZipBtn');
 const compareAllBtn = document.getElementById('compareAllBtn');
 
 const errorBar = document.getElementById('errorBar');
-const errorMsg = document.getElementById('errorMsg');
+const errorText = document.getElementById('errorText');
 
-const compareModal = document.getElementById('compareModal');
-const singleBeforeImg = document.getElementById('singleBeforeImg');
-const singleAfterImg = document.getElementById('singleAfterImg');
-const singleBeforeLabel = document.getElementById('singleBeforeLabel');
-const singleAfterLabel = document.getElementById('singleAfterLabel');
-const singleInfo = document.getElementById('singleInfo');
+const singleModal = document.getElementById('singleModal');
+const sbeforeImg = document.getElementById('sbeforeImg');
+const safterImg = document.getElementById('safterImg');
+const sbeforeLabel = document.getElementById('sbeforeLabel');
+const safterLabel = document.getElementById('safterLabel');
+const singleMeta = document.getElementById('singleMeta');
 
-const compareAllModal = document.getElementById('compareAllModal');
-const compareAllContent = document.getElementById('compareAllContent');
-const compareAllIndex = document.getElementById('compareAllIndex');
-const compareAllInfo = document.getElementById('compareAllInfo');
-const prevAll = document.getElementById('prevAll');
-const nextAll = document.getElementById('nextAll');
-const closeAll = document.getElementById('closeAll');
+const allModal = document.getElementById('allModal');
+const allContent = document.getElementById('allContent');
+const allIndex = document.getElementById('allIndex');
+const allMeta = document.getElementById('allMeta');
+const prevBtn = document.getElementById('prevBtn');
+const nextBtn = document.getElementById('nextBtn');
+const closeAllBtn = document.getElementById('closeAllBtn');
 
-let jsZip = new JSZip();
 let compressedCount = 0;
-let compareAllList = []; // indices of items compressed for compare all
-let compareAllPos = 0;
+let compareList = [];
+let comparePos = 0;
 
-/* ============================
-   Utilities
-   ============================ */
-function formatSizeBytes(b){
-  if (b === 0 || b == null) return '0 B';
+/* =========================
+   Helpers
+   ========================= */
+function formatBytes(b){
+  if (b==null) return '—';
   if (b < 1024) return b + ' B';
   if (b < 1024*1024) return (b/1024).toFixed(2) + ' KB';
-  if (b < 1024*1024*1024) return (b/(1024*1024)).toFixed(2) + ' MB';
-  return (b/(1024*1024*1024)).toFixed(2) + ' GB';
+  return (b/1024/1024).toFixed(2) + ' MB';
 }
 
 function showError(msg){
-  errorMsg.textContent = msg;
+  errorText.textContent = msg;
   errorBar.style.display = 'block';
-  // auto-hide after 4 seconds
-  setTimeout(() => { errorBar.style.display = 'none'; }, 4000);
+  // auto-hide after 4s
+  setTimeout(()=>{ errorBar.style.display = 'none'; }, 4000);
 }
 function hideError(){ errorBar.style.display = 'none'; }
 
-/* ============================
-   Wire quality label
-   ============================ */
+/* quality label */
 qualityVal.textContent = Number(qualityEl.value).toFixed(2);
 qualityEl.addEventListener('input', ()=> qualityVal.textContent = Number(qualityEl.value).toFixed(2));
 
-/* ============================
-   Drop zone + file select
-   ============================ */
+/* =========================
+   Drop / File select
+   ========================= */
 dropZone.addEventListener('click', ()=> fileInput.click());
-dropZone.addEventListener('dragover', (e)=>{ e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragover', (e)=> { e.preventDefault(); dropZone.classList.add('dragover'); });
 dropZone.addEventListener('dragleave', ()=> dropZone.classList.remove('dragover'));
-dropZone.addEventListener('drop', (e)=>{ e.preventDefault(); dropZone.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
+dropZone.addEventListener('drop', (e)=> { e.preventDefault(); dropZone.classList.remove('dragover'); handleFiles(e.dataTransfer.files); });
 
 fileInput.addEventListener('change', (e)=> handleFiles(e.target.files));
 
-function handleFiles(fileList){
-  const arr = Array.from(fileList);
+function handleFiles(files){
+  const arr = Array.from(files || []);
   if (!arr.length) return;
-  arr.forEach(file=>{
+  arr.forEach(file => {
     if (!file.type.startsWith('image/')) { showError('Only image files allowed'); return; }
     const reader = new FileReader();
     reader.onload = (ev)=>{
       items.push({
         file,
-        name: file.name.replace(/\.[^.]+$/, ''),
+        name: file.name.replace(/\.[^.]+$/,''),
         preview: ev.target.result,
         beforeBytes: file.size,
         compressed: null,
@@ -257,63 +318,64 @@ function handleFiles(fileList){
         progress: 0
       });
       renderGallery();
-      // show compress all button
       compressAllBtn.style.display = 'inline-block';
     };
     reader.readAsDataURL(file);
   });
 }
 
-/* ============================
-   Render gallery
-   ============================ */
+/* =========================
+   Render gallery UI
+   ========================= */
 function renderGallery(){
   gallery.innerHTML = '';
-  items.forEach((it, idx)=>{
+  items.forEach((it, idx) => {
     const card = document.createElement('div');
     card.className = 'card';
-
     card.innerHTML = `
-      <div class="thumb"><img src="${it.preview}" alt="${it.name}" /></div>
+      <div class="thumb"><img src="${it.preview}" alt="${it.name}"></div>
       <div class="meta">
         <div class="name" title="${it.name}">${it.name}</div>
-        <div class="size">${formatSizeBytes(it.beforeBytes)}</div>
+        <div class="size">${formatBytes(it.beforeBytes)}</div>
       </div>
-
       <div class="stats">
-        <div id="after-${idx}">After: ${ it.afterBytes ? formatSizeBytes(it.afterBytes) : '—' }</div>
+        <div id="after-${idx}">After: ${ it.afterBytes ? formatBytes(it.afterBytes) : '—' }</div>
         <div id="saved-${idx}">${ it.afterBytes ? ('Saved: ' + Math.round((1 - it.afterBytes/it.beforeBytes)*100) + '%') : '' }</div>
         <div class="progress"><i id="bar-${idx}" style="width:${it.progress}%"></i></div>
       </div>
-
       <div class="card-actions">
         <button class="small btn" onclick="compressOne(${idx})">Compress</button>
         <button class="small btn secondary" onclick="downloadOne(${idx})">Download</button>
-        <button class="small btn ghost" onclick="openSingleCompare(${idx})">Compare</button>
+        <button class="small btn ghost" onclick="openSingle(${idx})">Compare</button>
       </div>
     `;
-
     gallery.appendChild(card);
   });
 
-  // Download ZIP button visible only if compressedCount > 0
+  // update compressed count
+  compressedCount = items.filter(x=>x.compressed).length;
   downloadZipBtn.style.display = compressedCount > 0 ? 'inline-block' : 'none';
   compareAllBtn.style.display = compressedCount > 0 ? 'inline-block' : 'none';
 }
 
-/* ============================
-   Compression helpers
-   ============================ */
-function compressDataURL(dataUrl, q, w, h){
+/* =========================
+   Compression core
+   ========================= */
+function dataUrlToBytes(dataUrl){
+  // rough estimate of bytes
+  const base64 = dataUrl.split(',')[1] || '';
+  return Math.round(base64.length * 3 / 4);
+}
+
+function compressCanvasFromDataURL(dataUrl, q, w, h){
   return new Promise((resolve, reject)=>{
     const img = new Image();
     img.onload = ()=>{
-      // create canvas with given width & height (manual)
       const canvas = document.createElement('canvas');
       canvas.width = w;
       canvas.height = h;
       const ctx = canvas.getContext('2d');
-      ctx.clearRect(0,0,canvas.width, canvas.height);
+      ctx.clearRect(0,0,w,h);
       ctx.drawImage(img, 0, 0, w, h);
       try {
         const out = canvas.toDataURL('image/jpeg', q);
@@ -322,7 +384,7 @@ function compressDataURL(dataUrl, q, w, h){
         reject(e);
       }
     };
-    img.onerror = (e)=> reject(e);
+    img.onerror = (e) => reject(e);
     img.src = dataUrl;
   });
 }
@@ -330,137 +392,130 @@ function compressDataURL(dataUrl, q, w, h){
 async function compressOne(idx){
   const it = items[idx];
   if (!it) { showError('Item not found'); return; }
+  if (it.compressed) { /* already compressed - still allow recompress */ }
+
   try {
-    // show fake progress
-    it.progress = 6; updateProgressBar(idx);
+    it.progress = 6; updateBar(idx);
+
     const q = Number(qualityEl.value) || 0.8;
     const w = Number(widthEl.value) || 800;
     const h = Number(heightEl.value) || 800;
-    // compress
-    const out = await compressDataURL(it.preview, q, w, h);
+
+    const out = await compressCanvasFromDataURL(it.preview, q, w, h);
+
     it.compressed = out;
-    // estimate bytes
-    it.afterBytes = Math.round(out.length * 3 / 4);
-    it.progress = 100;
-    updateProgressBar(idx);
+    it.afterBytes = dataUrlToBytes(out);
+    it.progress = 100; updateBar(idx);
 
-    // add to zip (use base64 payload)
+    // add to JSZip (store base64)
     const base64 = out.split(',')[1];
-    jsZip.file(it.name + '_compressed.jpg', base64, {base64:true});
+    jsZip.file(it.name + '_compressed.jpg', base64, { base64: true });
 
-    compressedCount = items.filter(x=>x.compressed).length;
     renderGallery();
-  } catch(err){
-    console.error(err);
-    showError('Compression failed for ' + it.name);
+  } catch(e){
+    console.error(e);
+    showError('Compression failed for: ' + it.name);
   }
 }
 
+function updateBar(idx){
+  const el = document.getElementById('bar-' + idx);
+  if (el) el.style.width = (items[idx].progress || 0) + '%';
+}
+
+/* =========================
+   Compress All (sequential)
+   ========================= */
 async function compressAll(){
   if (!items.length) { showError('No images to compress'); return; }
-  // compress sequentially to avoid memory spikes
+  // compress sequentially
   for (let i=0;i<items.length;i++){
     if (!items[i].compressed){
       await compressOne(i);
     }
   }
-  // after all, ensure download appears
-  downloadZipBtn.style.display = compressedCount > 0 ? 'inline-block' : 'none';
-  compareAllBtn.style.display = compressedCount > 0 ? 'inline-block' : 'none';
+  // ensure action buttons appear (Download/Compare)
+  renderGallery();
 }
 
-function updateProgressBar(idx){
-  const bar = document.getElementById('bar-' + idx);
-  if(bar) bar.style.width = (items[idx].progress || 0) + '%';
-}
-
-/* ============================
+/* =========================
    Download single
-   ============================ */
+   ========================= */
 function downloadOne(idx){
   const it = items[idx];
-  if (!it || !it.compressed) { showError('Compress image first'); return; }
+  if (!it || !it.compressed) { showError('Please compress image first'); return; }
   const a = document.createElement('a');
   a.href = it.compressed;
   a.download = it.name + '_compressed.jpg';
   a.click();
 }
 
-/* ============================
-   Single compare (vertical)
-   ============================ */
-function openSingleCompare(idx){
+/* =========================
+   Single Compare modal
+   ========================= */
+function openSingle(idx){
   const it = items[idx];
-  if (!it || !it.compressed){ showError('Compress image first'); return; }
-  singleBeforeImg.src = it.preview;
-  singleAfterImg.src = it.compressed;
-  singleBeforeLabel.textContent = 'Before — ' + formatSizeBytes(it.beforeBytes);
-  singleAfterLabel.textContent = 'After — ' + formatSizeBytes(it.afterBytes);
-  singleInfo.textContent = `${it.name} • ${Math.round((1 - it.afterBytes/it.beforeBytes)*100)}% saved`;
-  compareModal.style.display = 'flex';
+  if (!it || !it.compressed) { showError('Please compress image first'); return; }
+  sbeforeImg.src = it.preview;
+  safterImg.src = it.compressed;
+  sbeforeLabel.textContent = 'Before — ' + formatBytes(it.beforeBytes);
+  safterLabel.textContent = 'After — ' + formatBytes(it.afterBytes);
+  singleMeta.textContent = `${it.name} • Saved ${Math.round((1 - it.afterBytes/it.beforeBytes)*100)}%`;
+  singleModal.style.display = 'flex';
 }
-function closeSingleCompare(){ compareModal.style.display = 'none'; }
+function closeSingle(){ singleModal.style.display = 'none'; }
 
-/* ============================
-   Compare ALL (carousel)
-   ============================ */
-function openCompareAll(){
-  // list of compressed indices
-  compareAllList = items.map((it,idx)=> it.compressed ? idx : -1).filter(i=>i>=0);
-  if (!compareAllList.length) { showError('No compressed images to compare'); return; }
-  compareAllPos = 0;
-  renderCompareAll();
-  compareAllModal.style.display = 'flex';
+/* =========================
+   Compare All carousel (vertical)
+   ========================= */
+function openAll(){
+  compareList = items.map((it,idx)=> it.compressed ? idx : -1).filter(i=>i>=0);
+  if (!compareList.length){ showError('No compressed images to compare'); return; }
+  comparePos = 0;
+  renderAllSlide();
+  allModal.style.display = 'flex';
 }
 
-function renderCompareAll(){
-  const idx = compareAllList[compareAllPos];
+function renderAllSlide(){
+  const idx = compareList[comparePos];
   const it = items[idx];
-  compareAllContent.innerHTML = ''; // clear
-  const pair = document.createElement('div');
-
-  // vertical before
+  allContent.innerHTML = '';
   const beforeBlock = document.createElement('div');
   beforeBlock.className = 'compare-pair';
-  beforeBlock.innerHTML = `<h4>Before — ${formatSizeBytes(it.beforeBytes)}</h4><img class="compare-img" src="${it.preview}" />`;
-
-  // vertical after
+  beforeBlock.innerHTML = `<h4>Before — ${formatBytes(it.beforeBytes)}</h4><img class="compare-img" src="${it.preview}" />`;
   const afterBlock = document.createElement('div');
   afterBlock.className = 'compare-pair';
-  afterBlock.innerHTML = `<h4>After — ${formatSizeBytes(it.afterBytes)}</h4><img class="compare-img" src="${it.compressed}" />`;
-
-  compareAllContent.appendChild(beforeBlock);
-  compareAllContent.appendChild(afterBlock);
-
-  compareAllIndex.textContent = (compareAllPos+1) + ' / ' + compareAllList.length;
-  compareAllInfo.textContent = `${it.name} • Saved ${Math.round((1 - it.afterBytes/it.beforeBytes)*100)}%`;
+  afterBlock.innerHTML = `<h4>After — ${formatBytes(it.afterBytes)}</h4><img class="compare-img" src="${it.compressed}" />`;
+  allContent.appendChild(beforeBlock);
+  allContent.appendChild(afterBlock);
+  allIndex.textContent = (comparePos + 1) + ' / ' + compareList.length;
+  allMeta.textContent = `${it.name} • Saved ${Math.round((1 - it.afterBytes/it.beforeBytes)*100)}%`;
 }
 
-prevAll.addEventListener('click', ()=>{
-  if (compareAllPos > 0) { compareAllPos--; renderCompareAll(); }
+prevBtn.addEventListener('click', ()=>{
+  if (comparePos > 0){ comparePos--; renderAllSlide(); }
 });
-nextAll.addEventListener('click', ()=>{
-  if (compareAllPos < compareAllList.length - 1) { compareAllPos++; renderCompareAll(); }
+nextBtn.addEventListener('click', ()=>{
+  if (comparePos < compareList.length - 1){ comparePos++; renderAllSlide(); }
 });
-closeAll.addEventListener('click', ()=> { compareAllModal.style.display = 'none'; });
+closeAllBtn.addEventListener('click', ()=> allModal.style.display = 'none');
 
-/* ============================
+/* =========================
    Download ZIP (all compressed)
-   ============================ */
+   ========================= */
 async function downloadZIP(){
   const compressed = items.filter(it=>it.compressed);
-  if (!compressed.length) { showError('No compressed images to ZIP'); return; }
+  if (!compressed.length){ showError('No compressed images to ZIP'); return; }
 
   try {
-    const zipObj = new JSZip();
-    for (let it of compressed){
-      // convert dataURL to blob
+    const z = new JSZip();
+    for (const it of compressed){
       const blob = await (await fetch(it.compressed)).blob();
-      zipObj.file(it.name + '_compressed.jpg', blob);
+      z.file(it.name + '_compressed.jpg', blob);
     }
-    const blobOut = await zipObj.generateAsync({type:'blob'});
+    const out = await z.generateAsync({ type: 'blob' });
     const a = document.createElement('a');
-    a.href = URL.createObjectURL(blobOut);
+    a.href = URL.createObjectURL(out);
     a.download = 'compressed_images.zip';
     a.click();
   } catch(e){
@@ -469,32 +524,33 @@ async function downloadZIP(){
   }
 }
 
-/* ============================
-   Wire buttons
-   ============================ */
-compressAllBtn.addEventListener('click', compressAll);
+/* =========================
+   Wire events
+   ========================= */
+compressAllBtn.addEventListener('click', async ()=>{
+  await compressAll();
+});
 downloadZipBtn.addEventListener('click', downloadZIP);
-compareAllBtn.addEventListener('click', openCompareAll);
+compareAllBtn.addEventListener('click', openAll);
 
-/* ============================
-   Update UI after compresses (watch)
-   ============================ */
-const uiInterval = setInterval(()=>{
-  // show compressAll if there are items
+/* Expose UI logic: show compress button when files present */
+const uiTick = setInterval(()=>{
   compressAllBtn.style.display = items.length ? 'inline-block' : 'none';
-  // download/compare buttons are controlled by compressedCount after rendering
-}, 600);
+}, 500);
 
-/* ============================
-   Prevent context menu on images (optional)
-   ============================ */
-gallery.addEventListener('contextmenu', (e)=>{ /* no-op to allow normal right click if needed */ });
+/* Show Download/Compare when compressed exist (hook using renderGallery) */
+(function monitorCompressed(){
+  const obs = new MutationObserver(()=>{ /* no-op - we call renderGallery manually when needed */ });
+  obs.observe(gallery, { childList: true, subtree:true });
+})();
 
-/* ============================
-   Expose utility for initial render
-   ============================ */
-function refreshUI(){ renderGallery(); }
+/* close modals when clicking backdrop */
+window.addEventListener('click', (e)=>{
+  if (e.target === singleModal) singleModal.style.display = 'none';
+  if (e.target === allModal) allModal.style.display = 'none';
+});
 
 </script>
+
 </body>
 </html>
